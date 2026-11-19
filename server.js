@@ -72,8 +72,8 @@ const isSecure = (req) => req.headers['x-forwarded-proto'] === 'https' || proces
 // ------------------------------------------------------ productos y categorías
 
 const PRODUCT_SELECT = `
-  SELECT p.*, c.name AS category_name, c.slug AS category_slug
-  FROM products p LEFT JOIN categories c ON c.id = p.category_id`;
+  SELECT p.*, c.name AS category_name, c.slug AS category_slug, s.name AS season_name, s.slug AS season_slug
+  FROM products p LEFT JOIN categories c ON c.id = p.category_id LEFT JOIN seasons s ON s.id = p.season_id`;
 
 function toProduct(r) {
   return {
@@ -81,6 +81,7 @@ function toProduct(r) {
     price: r.price_cents / 100,
     compare_price: r.compare_cents == null ? null : r.compare_cents / 100,
     category_id: r.category_id, category_name: r.category_name ?? null, category_slug: r.category_slug ?? null,
+    season_id: r.season_id ?? null, season_name: r.season_name ?? null, season_slug: r.season_slug ?? null,
     images: JSON.parse(r.images), sizes: JSON.parse(r.sizes), colors: JSON.parse(r.colors),
     stock: r.stock, active: !!r.active, featured: !!r.featured, created_at: r.created_at,
   };
@@ -97,9 +98,19 @@ function toPublicProduct(r) {
 function listCategories(onlyActive) {
   const cond = onlyActive ? 'AND p.active = 1' : '';
   return db.prepare(`
-    SELECT c.id, c.name, c.slug, c.position,
+    SELECT c.id, c.name, c.slug, c.position, c.image,
       (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id ${cond}) AS count
     FROM categories c ORDER BY c.position, c.id`).all();
+}
+
+// Temporadas: la tienda solo ve las activas que tienen prendas visibles.
+function listSeasons(onlyPublic) {
+  const cond = onlyPublic ? 'AND p.active = 1' : '';
+  const rows = db.prepare(`
+    SELECT s.id, s.name, s.slug, s.description, s.image, s.active, s.position, s.created_at,
+      (SELECT COUNT(*) FROM products p WHERE p.season_id = s.id ${cond}) AS count
+    FROM seasons s ${onlyPublic ? 'WHERE s.active = 1' : ''} ORDER BY s.position, s.id DESC`).all();
+  return rows.map((r) => ({ ...r, active: !!r.active }));
 }
 
 const money = (v) => {
@@ -142,9 +153,14 @@ function cleanProduct(b) {
     category_id = Number.parseInt(b.category_id, 10);
     if (!db.prepare('SELECT 1 FROM categories WHERE id = ?').get(category_id)) throw bad('La categoría no existe');
   }
+  let season_id = null;
+  if (b.season_id) {
+    season_id = Number.parseInt(b.season_id, 10);
+    if (!db.prepare('SELECT 1 FROM seasons WHERE id = ?').get(season_id)) throw bad('La temporada no existe');
+  }
   const images = (Array.isArray(b.images) ? b.images : []).filter((u) => typeof u === 'string' && UPLOAD_URL.test(u)).slice(0, 8);
   return {
-    name, price_cents, compare_cents, stock, category_id, images,
+    name, price_cents, compare_cents, stock, category_id, season_id, images,
     description: str(b.description, 2000),
     sizes: cleanList(b.sizes, 20, 12),
     colors: cleanList(b.colors, 20, 20),
@@ -202,13 +218,12 @@ function waMessage(order, items, s) {
   lines.push('', `Total: ${fmt(order.total_cents)}`, `Nombre: ${order.customer_name}`);
   if (order.customer_phone) lines.push(`Teléfono: ${order.customer_phone}`);
   if (order.payment_method) lines.push(`Pago: ${PAYMENT_LABELS[order.payment_method]}`);
-  if (order.payment_method === 'tarjeta') lines.push('Quiero pagar con tarjeta de crédito, ¿me envían el enlace de pago?');
   if (order.notes) lines.push(`Notas: ${order.notes}`);
   return lines.join('\n');
 }
 
-// Formas de pago que la clienta elige en el checkout. El cobro con tarjeta se coordina por WhatsApp.
-const PAYMENT_LABELS = { transferencia: 'Yape, Plin o transferencia', tarjeta: 'Tarjeta de crédito o débito' };
+// Forma de pago de la tienda: Yape, Plin o transferencia (no se acepta tarjeta).
+const PAYMENT_LABELS = { transferencia: 'Yape, Plin o transferencia' };
 
 function createOrder(b) {
   const name = str(b.name, 80);
@@ -218,7 +233,7 @@ function createOrder(b) {
   const email = str(b.email, 120).toLowerCase();
   if (email && !EMAIL_RE.test(email)) throw bad('El correo no es válido');
   if (phone && !normPhone(phone)) throw bad('Revisa tu teléfono: debe tener entre 8 y 15 dígitos');
-  const payment = PAYMENT_LABELS[b.payment_method] ? b.payment_method : '';
+  const payment = 'transferencia';
 
   return tx(() => {
     const items = [], used = new Map();
@@ -287,6 +302,7 @@ const intParam = (v) => {
 route('GET', '/api/store', () => ({
   settings: publicSettings(),
   categories: listCategories(true).filter((c) => c.count > 0),
+  seasons: listSeasons(true).filter((s) => s.count > 0),
 }));
 
 route('GET', '/api/products', ({ query }) => {
@@ -387,15 +403,15 @@ route('GET', '/api/admin/products', () =>
 
 function saveProduct(p, id) {
   const slug = uniqueSlug('products', slugify(p.name), id || 0);
-  const vals = [p.name, slug, p.description, p.price_cents, p.compare_cents, p.category_id,
+  const vals = [p.name, slug, p.description, p.price_cents, p.compare_cents, p.category_id, p.season_id,
     JSON.stringify(p.images), JSON.stringify(p.sizes), JSON.stringify(p.colors), p.stock, p.active, p.featured];
   if (id) {
-    db.prepare(`UPDATE products SET name=?, slug=?, description=?, price_cents=?, compare_cents=?, category_id=?,
+    db.prepare(`UPDATE products SET name=?, slug=?, description=?, price_cents=?, compare_cents=?, category_id=?, season_id=?,
       images=?, sizes=?, colors=?, stock=?, active=?, featured=?, updated_at=datetime('now') WHERE id=?`).run(...vals, id);
     return id;
   }
-  return Number(db.prepare(`INSERT INTO products (name, slug, description, price_cents, compare_cents, category_id,
-    images, sizes, colors, stock, active, featured) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(...vals).lastInsertRowid);
+  return Number(db.prepare(`INSERT INTO products (name, slug, description, price_cents, compare_cents, category_id, season_id,
+    images, sizes, colors, stock, active, featured) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(...vals).lastInsertRowid);
 }
 
 const productById = (id) => toProduct(db.prepare(`${PRODUCT_SELECT} WHERE p.id = ?`).get(id));
@@ -444,6 +460,57 @@ route('PUT', '/api/admin/categories/:id', async ({ req, params }) => {
 route('DELETE', '/api/admin/categories/:id', ({ params }) => {
   db.prepare('DELETE FROM categories WHERE id = ?').run(intParam(params.id)); // las prendas quedan "sin categoría"
   return listCategories(false);
+}, { admin: true });
+
+route('PUT', '/api/admin/categories/:id/image', async ({ req, params }) => {
+  const image = (await readJson(req)).image || '';
+  if (image && !UPLOAD_URL.test(image)) throw bad('Imagen no válida');
+  db.prepare('UPDATE categories SET image = ? WHERE id = ?').run(image, intParam(params.id));
+  return listCategories(false);
+}, { admin: true });
+
+// --- Administrador: temporadas (cada temporada agrupa sus nuevos outfits)
+function cleanSeason(b) {
+  const name = str(b.name, 60);
+  if (!name) throw bad('Escribe el nombre de la temporada');
+  const image = b.image || '';
+  if (image && !UPLOAD_URL.test(image)) throw bad('Imagen no válida');
+  return { name, description: str(b.description, 300), image, active: b.active === false ? 0 : 1 };
+}
+
+route('GET', '/api/admin/seasons', () => listSeasons(false), { admin: true });
+
+route('POST', '/api/admin/seasons', async ({ req }) => {
+  const s = cleanSeason(await readJson(req));
+  // La temporada nueva va primero: es la que se está lanzando.
+  tx(() => {
+    db.exec('UPDATE seasons SET position = position + 1');
+    db.prepare('INSERT INTO seasons (name, slug, description, image, active, position) VALUES (?, ?, ?, ?, ?, 0)')
+      .run(s.name, uniqueSlug('seasons', slugify(s.name)), s.description, s.image, s.active);
+  });
+  return listSeasons(false);
+}, { admin: true });
+
+// Esta ruta va antes de /:id para que "order" no se confunda con un id.
+route('PUT', '/api/admin/seasons/order', async ({ req }) => {
+  const { ids } = await readJson(req);
+  if (!Array.isArray(ids)) throw bad('Orden no válido');
+  tx(() => ids.forEach((id, i) => db.prepare('UPDATE seasons SET position = ? WHERE id = ?').run(i + 1, Number(id))));
+  return listSeasons(false);
+}, { admin: true });
+
+route('PUT', '/api/admin/seasons/:id', async ({ req, params }) => {
+  const id = intParam(params.id);
+  if (!db.prepare('SELECT 1 FROM seasons WHERE id = ?').get(id)) throw new HttpError(404, 'La temporada no existe');
+  const s = cleanSeason(await readJson(req));
+  db.prepare('UPDATE seasons SET name = ?, slug = ?, description = ?, image = ?, active = ? WHERE id = ?')
+    .run(s.name, uniqueSlug('seasons', slugify(s.name), id), s.description, s.image, s.active, id);
+  return listSeasons(false);
+}, { admin: true });
+
+route('DELETE', '/api/admin/seasons/:id', ({ params }) => {
+  db.prepare('DELETE FROM seasons WHERE id = ?').run(intParam(params.id)); // las prendas quedan "sin temporada"
+  return listSeasons(false);
 }, { admin: true });
 
 // --- Administrador: pedidos
@@ -698,11 +765,14 @@ require('./sales').register({ route, HttpError, bad, str, money, readJson, intPa
 
 // --- Administrador: borrar datos (para empezar limpio después de probar)
 // Pide la contraseña otra vez: es la acción más destructiva del panel y no se puede deshacer.
-const WIPE_PARTS = ['pedidos', 'clientes', 'campanas', 'ventas', 'compras', 'prendas', 'categorias'];
+const WIPE_PARTS = ['pedidos', 'clientes', 'campanas', 'ventas', 'compras', 'prendas', 'categorias', 'temporadas'];
 
 function removeUnusedUploads() {
   const s = getSettings();
-  const used = new Set([s.logo, s.hero_image].filter((u) => u && u.startsWith('/uploads/')).map((u) => u.slice('/uploads/'.length)));
+  const kept = [s.logo, s.hero_image,
+    ...db.prepare('SELECT image FROM categories').all().map((r) => r.image),
+    ...db.prepare('SELECT image FROM seasons').all().map((r) => r.image)];
+  const used = new Set(kept.filter((u) => u && u.startsWith('/uploads/')).map((u) => u.slice('/uploads/'.length)));
   let removed = 0;
   for (const name of fs.readdirSync(UPLOAD_DIR)) {
     if (!/^[\w.-]+$/.test(name) || used.has(name)) continue;
@@ -730,9 +800,10 @@ route('POST', '/api/admin/wipe', async ({ req }) => {
     if (has('compras')) del('compras', 'supplier_purchases'), del('cuentas', 'supplier_accounts');
     if (has('prendas')) del('prendas', 'products');
     if (has('categorias')) del('categorias', 'categories');
+    if (has('temporadas')) del('temporadas', 'seasons');
     // Los números (id) de lo borrado vuelven a empezar desde 1.
     const tables = { pedidos: ['orders'], ventas: ['sales'], campanas: ['campaigns'], clientes: ['customers', 'customer_activities', 'campaigns'],
-      compras: ['supplier_purchases', 'supplier_purchase_items', 'supplier_accounts'], prendas: ['products'], categorias: ['categories'] };
+      compras: ['supplier_purchases', 'supplier_purchase_items', 'supplier_accounts'], prendas: ['products'], categorias: ['categories'], temporadas: ['seasons'] };
     const reset = [...new Set(parts.flatMap((p) => tables[p]))];
     db.prepare(`DELETE FROM sqlite_sequence WHERE name IN (${reset.map(() => '?').join(',')})`).run(...reset);
   });

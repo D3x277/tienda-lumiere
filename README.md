@@ -153,7 +153,8 @@ Railway, un VPS o similares también sirven. Checklist: `HOST=0.0.0.0`, `PORT` e
 - El stock es por prenda, no por talla o color.
 - Al eliminar una prenda, sus fotos quedan en `uploads/` (no se borran).
 - La tienda carga todas las prendas de una vez: va bien hasta unos cientos; con más conviene paginar.
-- El pago se coordina por WhatsApp; no hay pasarela de pago. En el checkout la clienta elige "Yape, Plin o transferencia" o "Tarjeta de crédito o débito"; con tarjeta se le indica que sí puede y que el enlace de pago se le envía por WhatsApp (el pedido llega marcado así al panel).
+- El pago se coordina por WhatsApp; no hay pasarela de pago. La tienda solo acepta Yape, Plin o transferencia (ya no ofrece tarjeta); los datos de pago se envían por WhatsApp.
+- Temporadas: en el panel (Catálogo → Temporadas) se crean temporadas con foto y frase. La primera de la lista es la temporada actual: sale destacada en la portada y es la que se elige por defecto al subir un outfit nuevo. Las categorías pueden tener su propia foto para "Explora por categoría".
 - Las campañas no se envían solas: el panel abre WhatsApp con el mensaje listo y tú tocas Enviar en cada chat. Para envíos automáticos haría falta la API de WhatsApp Business (de pago, de Meta) o un servicio de correo como Brevo o Mailchimp (puedes exportar los clientes en CSV).
 
 ## Siguientes pasos naturales

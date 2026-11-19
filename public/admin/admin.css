@@ -411,3 +411,32 @@ dialog.modal::backdrop { background: rgb(22 26 35 / .5); }
   transition: opacity .2s, transform .2s;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Fotos de categorías y temporadas (cuadrito que se toca para subir) */
+.thumb-pick-wrap { position: relative; flex: none; display: inline-block; }
+.thumb-pick {
+  display: grid; place-items: center; width: 56px; height: 70px; padding: 0; overflow: hidden;
+  background: var(--paper); border: 1.5px dashed #CDB6C2; border-radius: 10px; color: var(--muted); font-size: .75rem; font-weight: 600;
+}
+.thumb-pick:hover { border-color: var(--accent); color: var(--accent); }
+.thumb-pick img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-pick.wait { opacity: .5; cursor: progress; }
+.link-x {
+  position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+  background: var(--ink); color: var(--paper); border: 2px solid var(--surface); font-size: .8rem; line-height: 1;
+}
+
+/* Temporadas */
+.slist .srow { display: grid; grid-template-columns: auto 1fr; gap: .75rem 1rem; padding: 1rem 0; align-items: start; }
+.slist .srow + .srow { border-top: 1px solid var(--line); }
+.srow .thumb-pick { width: 72px; height: 92px; }
+.srow-main { display: grid; gap: .5rem; }
+.srow-main .textarea { min-height: 60px; }
+.srow-main .muted { font-size: .9rem; }
+.srow-act { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.srow-act .icon-btn { width: 40px; min-height: 40px; padding: 0; }
+.srow.is-hidden .thumb-pick, .srow.is-hidden .srow-main .input { opacity: .5; }
+@media (min-width: 760px) {
+  .slist .srow { grid-template-columns: auto 1fr auto; }
+  .srow-act { grid-column: auto; }
+}

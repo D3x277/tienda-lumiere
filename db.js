@@ -148,8 +148,25 @@ addColumn('supplier_purchase_items', 'type', "TEXT NOT NULL DEFAULT ''");    // 
 addColumn('supplier_purchase_items', 'sale_price_cents', 'INTEGER');          // precio de venta proyectado
 addColumn('supplier_purchase_items', 'price_source', "TEXT NOT NULL DEFAULT 'pedido'"); // 'pedido' | 'pagina' | 'aprox'
 db.exec(`UPDATE supplier_purchase_items SET type = CASE kind WHEN 'accesorio' THEN 'Accesorio' ELSE 'Prenda' END WHERE type = ''`);
-addColumn('orders', 'payment_method', "TEXT NOT NULL DEFAULT ''"); // 'transferencia' | 'tarjeta'
+addColumn('orders', 'payment_method', "TEXT NOT NULL DEFAULT ''"); // 'transferencia' (pedidos antiguos pueden decir 'tarjeta')
 db.exec('CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id)');
+
+// Temporadas: cada temporada (Verano 2026, Fiestas, Resort…) agrupa los outfits que nacen con ella.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS seasons (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    slug        TEXT NOT NULL UNIQUE,
+    description TEXT NOT NULL DEFAULT '',
+    image       TEXT NOT NULL DEFAULT '',        -- foto de portada de la temporada (/uploads/...)
+    active      INTEGER NOT NULL DEFAULT 1,      -- 1 = se muestra en la tienda
+    position    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+addColumn('products', 'season_id', 'INTEGER REFERENCES seasons(id) ON DELETE SET NULL');
+addColumn('categories', 'image', "TEXT NOT NULL DEFAULT ''"); // foto para "Explora por categoría"
+db.exec('CREATE INDEX IF NOT EXISTS idx_products_season ON products(season_id)');
 
 // Registro de ventas: cada prenda vendida (por la tienda, WhatsApp, Instagram o en persona),
 // con su precio real. El costo se toma de la prenda comprada, así la ganancia es exacta.
@@ -216,7 +233,7 @@ const DEFAULTS = {
   store_name: 'Lumiere',
   tagline: 'Ropa femenina con envíos a todo el Perú',
   hero_title: 'Silenciosamente icónica',
-  hero_subtitle: 'Prendas pensadas para destacar sin hacer ruido. Elige las tuyas y cierra tu pedido por WhatsApp.',
+  hero_subtitle: 'Prendas pensadas para destacar sin hacer ruido.',
   hero_image: '',
   logo: '/brand/lumiere-logo.png',
   accent: '#892E54',

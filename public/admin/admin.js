@@ -2,12 +2,12 @@
 // Panel de administración: prendas, categorías, pedidos y configuración de la tienda.
 // Depende de dom.js (h, $, api, fmtMoney, applyAccent, norm).
 
-const A = { settings: {}, categories: [], products: [], orders: [], accounts: [], tab: 'resumen', q: '', orderFilter: '', accQ: '' };
+const A = { settings: {}, categories: [], seasons: [], products: [], orders: [], accounts: [], tab: 'resumen', q: '', orderFilter: '', accQ: '' };
 const root = $('#root');
 // Menú lateral, agrupado como en un CRM. Cada sección es una vista (función) más abajo o en crm.js / reports.js.
 const NAV = [
   ['Ventas', [['resumen', 'Resumen'], ['clientes', 'Clientes'], ['pedidos', 'Pedidos'], ['campanas', 'Campañas']]],
-  ['Catálogo', [['prendas', 'Prendas'], ['categorias', 'Categorías']]],
+  ['Catálogo', [['prendas', 'Prendas'], ['categorias', 'Categorías'], ['temporadas', 'Temporadas']]],
   ['Compras', [['inventario', 'Inventario y ventas'], ['cuentas', 'Compras Shein']]],
   ['Ajustes', [['tienda', 'Mi tienda']]],
 ];
@@ -99,11 +99,11 @@ function showLogin(message) {
 }
 
 async function start() {
-  const [settings, categories, products, orders, accounts] = await Promise.all([
-    call('/api/admin/settings'), call('/api/admin/categories'), call('/api/admin/products'), call('/api/admin/orders'),
-    call('/api/admin/accounts'),
+  const [settings, categories, seasons, products, orders, accounts] = await Promise.all([
+    call('/api/admin/settings'), call('/api/admin/categories'), call('/api/admin/seasons'), call('/api/admin/products'),
+    call('/api/admin/orders'), call('/api/admin/accounts'),
   ]);
-  Object.assign(A, { settings, categories, products, orders, accounts });
+  Object.assign(A, { settings, categories, seasons, products, orders, accounts });
   applyAccent(settings.accent);
   shell();
   route();
@@ -141,7 +141,7 @@ function route() {
   document.title = `${TABS.find((t) => t[0] === A.tab)[1]} · Panel`;
   const views = {
     resumen: reportsView, clientes: customersView, pedidos: ordersView, campanas: campaignsView,
-    prendas: productsView, categorias: categoriesView, inventario: inventoryView, cuentas: accountsView, tienda: settingsView,
+    prendas: productsView, categorias: categoriesView, temporadas: seasonsView, inventario: inventoryView, cuentas: accountsView, tienda: settingsView,
   };
   $('#panel').replaceChildren(views[A.tab](param));
 }
@@ -158,7 +158,7 @@ function asyncView(load, render) {
 
 const productPayload = (p) => ({
   name: p.name, description: p.description, price: p.price, compare_price: p.compare_price, category_id: p.category_id,
-  stock: p.stock, images: p.images, sizes: p.sizes, colors: p.colors, active: p.active, featured: p.featured,
+  season_id: p.season_id, stock: p.stock, images: p.images, sizes: p.sizes, colors: p.colors, active: p.active, featured: p.featured,
 });
 
 function productsView() {
@@ -211,7 +211,7 @@ function productRow(p) {
     h('div', { class: 'pthumb' }, p.images[0] ? h('img', { src: p.images[0], alt: '' }) : null),
     h('div', { class: 'pmain' },
       h('p', { class: 'pname' }, p.name),
-      h('p', { class: 'pcat' }, p.category_name || 'Sin categoría'),
+      h('p', { class: 'pcat' }, p.category_name || 'Sin categoría', p.season_name ? ` · ${p.season_name}` : ''),
       h('p', { class: 'pmeta' }, h('span', {}, money(p.price)), stockEl('')),
     ),
     h('div', { class: 'pcol' }, money(p.price), p.compare_price ? h('small', {}, `Antes ${money(p.compare_price)}`) : null),
@@ -263,7 +263,7 @@ function chipInput({ values, placeholder, label, presets = [] }) {
 }
 
 function openProductEditor(existing) {
-  const p = existing || { name: '', description: '', price: '', compare_price: '', category_id: '', stock: '', images: [], sizes: [], colors: [], active: true, featured: false };
+  const p = existing || { name: '', description: '', price: '', compare_price: '', category_id: '', season_id: A.seasons[0]?.id ?? '', stock: '', images: [], sizes: [], colors: [], active: true, featured: false };
   let images = [...p.images];
   let uploading = 0;
 
@@ -321,14 +321,14 @@ function openProductEditor(existing) {
       const el = e.target.elements;
       const body = {
         name: el.pname.value, description: el.description.value, price: el.price.value, compare_price: el.compare.value,
-        category_id: el.category.value, stock: el.stock.value, images, sizes: sizes.get(), colors: colors.get(),
+        category_id: el.category.value, season_id: el.season.value, stock: el.stock.value, images, sizes: sizes.get(), colors: colors.get(),
         active: el.active.checked, featured: el.featured.checked,
       };
       msg.textContent = ''; save.disabled = true; save.textContent = 'Guardando…';
       try {
         await call(existing ? `/api/admin/products/${existing.id}` : '/api/admin/products', { method: existing ? 'PUT' : 'POST', body });
         A.products = await call('/api/admin/products');
-        A.categories = await call('/api/admin/categories');
+        [A.categories, A.seasons] = await Promise.all([call('/api/admin/categories'), call('/api/admin/seasons')]);
         dlg.close(); route(); toast('Prenda guardada');
       } catch (ex) { msg.textContent = ex.message; save.disabled = false; save.textContent = 'Guardar prenda'; }
     },
@@ -347,12 +347,16 @@ function openProductEditor(existing) {
     h('div', { class: 'grid2' },
       field('Categoría', h('select', { class: 'select', name: 'category', value: p.category_id ?? '' },
         h('option', { value: '' }, 'Sin categoría'), A.categories.map((c) => h('option', { value: c.id }, c.name)))),
+      field('Temporada', h('select', { class: 'select', name: 'season', value: p.season_id ?? '' },
+        h('option', { value: '' }, 'Sin temporada'), A.seasons.map((x) => h('option', { value: x.id }, x.name))),
+      A.seasons.length ? 'Los outfits nuevos van a la temporada actual' : h('a', { href: '#temporadas', onclick: () => dlg.close() }, 'Crea tu primera temporada'))),
+    h('div', { class: 'grid2' },
       field('Unidades disponibles', h('input', { class: 'input', name: 'stock', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: p.stock ?? '', placeholder: 'Sin límite' }), 'Déjalo vacío si no quieres controlar el stock')),
     h('div', { class: 'field' }, h('span', { class: 'label' }, 'Tallas'), sizes.el),
     h('div', { class: 'field' }, h('span', { class: 'label' }, 'Colores'), colors.el),
     h('div', { class: 'checks' },
       h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'active', checked: p.active }), 'Mostrar en la tienda'),
-      h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'featured', checked: p.featured }), 'Destacar en la portada')),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', name: 'featured', checked: p.featured }), 'Destacar en "Nuevos ingresos"')),
     msg),
   h('div', { class: 'modal-foot' },
     save,
@@ -390,6 +394,13 @@ function categoriesView() {
   };
 
   const catRow = (c, i) => h('div', { class: 'crow' },
+    thumbPicker({
+      value: c.image, label: `Foto de ${c.name}`,
+      onChange: async (url) => {
+        try { A.categories = await call(`/api/admin/categories/${c.id}/image`, { method: 'PUT', body: { image: url } }); toast(url ? 'Foto guardada' : 'Foto quitada'); draw(); }
+        catch (ex) { toast(ex.message); }
+      },
+    }),
     h('input', {
       class: 'input', value: c.name, maxlength: '40', 'aria-label': `Nombre de la categoría ${c.name}`,
       onchange: async (e) => {
@@ -430,7 +441,89 @@ function categoriesView() {
 
   return h('div', {},
     h('div', { class: 'panel-head' }, h('h2', { class: 'title' }, 'Categorías')),
-    h('div', { class: 'box' }, h('p', { class: 'muted' }, 'La tienda muestra solo las categorías que tienen prendas visibles. El orden de esta lista es el de la tienda.'), addForm),
+    h('div', { class: 'box' }, h('p', { class: 'muted' }, 'La tienda muestra solo las categorías que tienen prendas visibles, en este orden, en "Explora por categoría". Toca el cuadrito para subir su foto; si no tiene, se usa la foto de una de sus prendas.'), addForm),
+    h('div', { class: 'box' }, list));
+}
+
+// Cuadrito de foto: al tocarlo se sube una imagen. Se usa en categorías y temporadas.
+function thumbPicker({ value, label, onChange }) {
+  const file = h('input', {
+    type: 'file', accept: 'image/*', class: 'sr-only', tabindex: '-1',
+    onchange: async (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      btn.classList.add('wait');
+      try { await onChange(await uploadImage(f, { max: 1200 })); } catch (ex) { toast(ex.message); }
+      btn.classList.remove('wait');
+    },
+  });
+  const btn = h('button', { class: 'thumb-pick', type: 'button', 'aria-label': value ? `Cambiar ${label.toLowerCase()}` : `Subir ${label.toLowerCase()}`, title: label, onclick: () => file.click() },
+    value ? h('img', { src: value, alt: '' }) : h('span', {}, '+ Foto'));
+  return h('span', { class: 'thumb-pick-wrap' }, btn, file,
+    value ? h('button', { class: 'link-x', type: 'button', 'aria-label': `Quitar ${label.toLowerCase()}`, onclick: () => onChange('') }, '×') : null);
+}
+
+// ------------------------------------------------------------------ temporadas
+
+function seasonsView() {
+  const list = h('div', { class: 'slist' });
+  const body = (x) => ({ name: x.name, description: x.description, image: x.image, active: x.active });
+  const save = async (x, patch, ok) => {
+    try { A.seasons = await call(`/api/admin/seasons/${x.id}`, { method: 'PUT', body: { ...body(x), ...patch } }); A.products = await call('/api/admin/products'); if (ok) toast(ok); draw(); }
+    catch (ex) { toast(ex.message); draw(); }
+  };
+  const reorder = async (i, d) => {
+    const ids = A.seasons.map((x) => x.id);
+    [ids[i], ids[i + d]] = [ids[i + d], ids[i]];
+    try { A.seasons = await call('/api/admin/seasons/order', { method: 'PUT', body: { ids } }); draw(); } catch (ex) { toast(ex.message); }
+  };
+
+  const row = (x, i) => h('div', { class: `srow${x.active ? '' : ' is-hidden'}` },
+    thumbPicker({ value: x.image, label: `Foto de ${x.name}`, onChange: (url) => save(x, { image: url }, url ? 'Foto guardada' : 'Foto quitada') }),
+    h('div', { class: 'srow-main' },
+      h('input', { class: 'input', value: x.name, maxlength: '60', 'aria-label': `Nombre de la temporada ${x.name}`, onchange: (e) => save(x, { name: e.target.value }, 'Nombre actualizado') }),
+      h('textarea', { class: 'textarea', rows: '2', maxlength: '300', placeholder: 'Frase de la temporada (opcional), ej. Looks frescos para el sol', 'aria-label': `Descripción de ${x.name}`, onchange: (e) => save(x, { description: e.target.value }, 'Descripción guardada') }, x.description),
+      h('p', { class: 'muted' }, i === 0 ? h('strong', {}, 'Temporada actual · ') : null, `${x.count} ${x.count === 1 ? 'prenda' : 'prendas'}`,
+        x.count ? [' · ', h('a', { href: `/#/temporada/${x.slug}`, target: '_blank', rel: 'noopener' }, 'Ver en la tienda')] : null)),
+    h('div', { class: 'srow-act' },
+      h('label', { class: 'switch', title: 'Visible en la tienda' },
+        h('input', { type: 'checkbox', role: 'switch', checked: x.active, 'aria-label': `Mostrar ${x.name} en la tienda`, onchange: (e) => save(x, { active: e.target.checked }, e.target.checked ? 'Temporada visible' : 'Temporada oculta') }),
+        h('span', { class: 'track' })),
+      h('button', { class: 'btn icon-btn', type: 'button', 'aria-label': `Subir ${x.name}`, disabled: i === 0, onclick: () => reorder(i, -1) }, '↑'),
+      h('button', { class: 'btn icon-btn', type: 'button', 'aria-label': `Bajar ${x.name}`, disabled: i === A.seasons.length - 1, onclick: () => reorder(i, 1) }, '↓'),
+      confirmButton({
+        label: 'Eliminar', confirmLabel: x.count ? `Sí, dejar ${x.count} sin temporada` : 'Sí, eliminar',
+        onConfirm: async () => {
+          try { A.seasons = await call(`/api/admin/seasons/${x.id}`, { method: 'DELETE' }); A.products = await call('/api/admin/products'); draw(); toast('Temporada eliminada'); }
+          catch (ex) { toast(ex.message); }
+        },
+      })));
+
+  function draw() {
+    list.replaceChildren(...(A.seasons.length ? A.seasons.map(row)
+      : [h('div', { class: 'empty-note' }, h('strong', {}, 'Aún no hay temporadas'), 'Crea la primera, por ejemplo "Verano 2026". Luego, al subir cada outfit, elige a qué temporada pertenece.')]));
+  }
+  draw();
+
+  const addForm = h('form', {
+    class: 'inline-form',
+    onsubmit: async (e) => {
+      e.preventDefault();
+      const input = e.target.elements.sname;
+      if (!input.value.trim()) { input.focus(); return; }
+      try { A.seasons = await call('/api/admin/seasons', { method: 'POST', body: { name: input.value } }); input.value = ''; draw(); toast('Temporada creada'); }
+      catch (ex) { toast(ex.message); }
+    },
+  },
+  h('input', { class: 'input', name: 'sname', maxlength: '60', placeholder: 'Nueva temporada, ej. Verano 2026', 'aria-label': 'Nombre de la nueva temporada' }),
+  h('button', { class: 'btn btn-primary', type: 'submit' }, 'Crear temporada'));
+
+  return h('div', {},
+    h('div', { class: 'panel-head' }, h('h2', { class: 'title' }, 'Temporadas')),
+    h('div', { class: 'box' },
+      h('p', { class: 'muted' }, 'Cada temporada trae sus propios outfits. La primera de la lista es la temporada actual: sale destacada en la portada y las prendas nuevas se asignan a ella. Solo se muestran las temporadas visibles que tienen prendas.'),
+      addForm),
     h('div', { class: 'box' }, list));
 }
 
@@ -464,7 +557,7 @@ function ordersView() {
         o.customer_phone ? [' ', h('a', { href: `tel:${digits}` }, o.customer_phone)] : null,
         o.customer_email ? [' · ', h('span', { class: 'muted' }, o.customer_email)] : null,
         o.payment_method ? h('span', { class: `pay-chip${o.payment_method === 'tarjeta' ? ' is-card' : ''}` },
-          o.payment_method === 'tarjeta' ? 'Paga con tarjeta: envíale el enlace de pago' : 'Yape, Plin o transferencia') : null,
+          o.payment_method === 'tarjeta' ? 'Pidió pagar con tarjeta (pedido antiguo)' : 'Yape, Plin o transferencia') : null,
         o.notes ? h('p', { class: 'note' }, o.notes) : null),
       h('ul', { class: 'oitems' }, o.items.map((it) => h('li', {},
         h('span', {}, `${it.qty} × ${it.name}`, [it.size, it.color].filter(Boolean).length ? h('span', { class: 'variant' }, ` ${[it.size, it.color].filter(Boolean).join(', ')}`) : null),
@@ -900,7 +993,7 @@ function settingsView() {
     field('Texto bajo el título', h('textarea', { class: 'textarea', name: 'hero_subtitle', maxlength: '300', rows: '2' }, s.hero_subtitle)),
     h('div', { class: 'field' }, h('span', { class: 'label' }, 'Foto de portada (opcional)'),
       imageField({ value: draft.hero_image, wide: true, onChange: (u) => { draft.hero_image = u; } }),
-      h('span', { class: 'hint' }, 'Si no subes una, la portada muestra tus prendas destacadas.'))),
+      h('span', { class: 'hint' }, 'Mejor vertical (la modelo de cuerpo entero). Si no subes una, la portada usa la foto de tu temporada actual o de una prenda destacada.'))),
   h('div', { class: 'savebar' }, saveBtn, h('a', { class: 'btn', href: '/', target: '_blank', rel: 'noopener' }, 'Ver mi tienda'), msg));
 
   // Contraseña
@@ -940,6 +1033,7 @@ const WIPE = [
   ['compras', 'Compras Shein', 'Cuentas, contraseñas guardadas, compras e inventario.'],
   ['prendas', 'Prendas de la tienda', 'Todas las prendas publicadas y sus fotos.'],
   ['categorias', 'Categorías', 'Las prendas que queden pasan a "Sin categoría".'],
+  ['temporadas', 'Temporadas', 'Las prendas que queden pasan a "Sin temporada".'],
 ];
 
 function wipeForm() {
@@ -960,9 +1054,9 @@ function wipeForm() {
       try {
         const r = await call('/api/admin/wipe', { method: 'POST', body: { parts, password: el.wpass.value } });
         Object.assign(A, await (async () => {
-          const [categories, products, orders, accounts] = await Promise.all([
-            call('/api/admin/categories'), call('/api/admin/products'), call('/api/admin/orders'), call('/api/admin/accounts')]);
-          return { categories, products, orders, accounts };
+          const [categories, seasons, products, orders, accounts] = await Promise.all([
+            call('/api/admin/categories'), call('/api/admin/seasons'), call('/api/admin/products'), call('/api/admin/orders'), call('/api/admin/accounts')]);
+          return { categories, seasons, products, orders, accounts };
         })());
         drawTabs();
         e.target.reset(); sync(e.target);
