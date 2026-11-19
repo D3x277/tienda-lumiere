@@ -1,0 +1,33 @@
+# Plano para Render: crea la tienda con su disco permanente (base de datos, fotos y llave de cifrado).
+# El disco exige un plan de pago (starter o superior). Render hace una copia diaria del disco.
+# Pasos completos en el README, sección "Publicarla en internet".
+services:
+  - type: web
+    name: lumiere-tienda
+    runtime: node
+    plan: starter
+    region: virginia            # la más cercana a Perú entre las de Render
+    buildCommand: echo "sin dependencias"
+    startCommand: npm start
+    healthCheckPath: /api/store
+    envVars:
+      - key: NODE_VERSION
+        value: 24.13.1          # la misma versión con la que se probó la tienda
+      - key: HOST
+        value: 0.0.0.0
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATA_DIR
+        value: /var/data/db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: TZ_OFFSET_HOURS
+        value: "-5"             # hora de Perú para los reportes
+      - key: ADMIN_PASSWORD
+        sync: false             # Render te la pide al crear el servicio: es la contraseña del panel
+    disk:
+      name: tienda-datos
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,0 +1,12 @@
+# Datos privados: base de datos, llave de cifrado (vault.key) y fotos subidas. Nunca van al repositorio.
+data/
+uploads/
+*.db
+*.db-shm
+*.db-wal
+vault.key
+.env
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

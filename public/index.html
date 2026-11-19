@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tienda</title>
+  <link rel="icon" type="image/png" href="/brand/favicon.png">
+  <meta name="theme-color" content="#FBF5F7">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/base.css">
+  <link rel="stylesheet" href="/store.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap bar">
+      <a class="brand" id="brand" href="#/"></a>
+      <button class="cart-btn" id="cart-btn" type="button" aria-haspopup="dialog">
+        <span>Mi pedido</span>
+        <span class="count" id="cart-count" aria-hidden="true">0</span>
+        <span class="sr-only" id="cart-count-sr"></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"><p class="wrap loading">Cargando la tienda…</p></main>
+
+  <footer class="site-footer" id="footer"></footer>
+
+  <dialog class="drawer" id="cart" aria-labelledby="cart-title"></dialog>
+
+  <script src="/dom.js"></script>
+  <script src="/store.js"></script>
+</body>
+</html>

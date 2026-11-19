@@ -1,0 +1,88 @@
+/* Base compartida por la tienda y el panel: colores, tipografía, botones y formularios. */
+
+:root {
+  /* Paleta Lumiere: sale del logo (rosa vino metálico) */
+  --paper: #FBF5F7;       /* blanco rosado de fondo */
+  --surface: #FFFFFF;
+  --ink: #2B0E1C;         /* vino casi negro, del trazo más oscuro del logo */
+  --muted: #6F5565;
+  --line: #EBD7E0;
+  --tag: linear-gradient(112deg, #F6E3EC 0%, #D9A5BF 34%, #F3D9E6 52%, #BF7F9E 100%); /* etiqueta rosa metálica */
+  --tag-solid: #D9A5BF;
+  --tag-ink: #3A0F27;
+  --accent: #892E54;      /* rosa Lumiere; la dueña lo cambia desde el panel */
+  --accent-ink: #FFFFFF;  /* se calcula solo para que el texto siempre se lea */
+  --danger: #B3261E;
+  --ok: #1F7A4D;
+  --radius: 4px;
+  --font-body: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-body);  /* títulos utilitarios: la misma familia, más peso */
+  --font-brand: 'Grenze Gotisch', 'UnifrakturCook', 'Old English Text MT', Georgia, serif; /* gótica, como el logo: solo para momentos de marca */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 1rem/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+img { display: block; max-width: 100%; }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+[hidden] { display: none !important; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.display {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Botones */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 44px; padding: 0 1.25rem;
+  border: 1.5px solid var(--ink); border-radius: var(--radius);
+  background: transparent; color: var(--ink);
+  font-weight: 600; text-decoration: none; line-height: 1.1;
+}
+.btn:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+.btn-dark { background: var(--ink); color: var(--paper); }
+.btn-dark:hover { background: color-mix(in srgb, var(--ink) 85%, #fff); }
+.btn-quiet { border-color: transparent; }
+.btn-danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn-danger:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.btn-block { width: 100%; }
+.btn-small { min-height: 36px; padding: 0 .8rem; font-size: .9rem; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+
+/* Formularios */
+.field { display: block; margin-bottom: 1rem; }
+.field > .label { display: block; margin-bottom: .35rem; font-weight: 600; font-size: .95rem; }
+.field > .hint { display: block; margin-top: .3rem; color: var(--muted); font-size: .875rem; }
+.input, .select, .textarea {
+  display: block; width: 100%; min-height: 44px; padding: .65rem .8rem;
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius);
+}
+.textarea { min-height: 96px; resize: vertical; }
+.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+.form-msg { min-height: 1.4em; margin: .5rem 0; font-size: .95rem; color: var(--danger); }
+.form-msg.is-ok { color: var(--ok); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
+}

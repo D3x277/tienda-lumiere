@@ -1,0 +1,15 @@
+{
+  "name": "ecommerce",
+  "version": "1.0.0",
+  "description": "Tienda de ropa con panel de administración. Sin dependencias.",
+  "private": true,
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "seed": "node --disable-warning=ExperimentalWarning seed.js",
+    "reset-password": "node --disable-warning=ExperimentalWarning reset-password.js",
+    "importar-noviembre": "node --disable-warning=ExperimentalWarning importar-noviembre.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
