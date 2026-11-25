@@ -190,6 +190,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sales_item ON sales(item_id);
   CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);
 `);
+// Ventas unidas al catálogo y a los pedidos web.
+addColumn('sales', 'product_id', 'INTEGER REFERENCES products(id) ON DELETE SET NULL'); // prenda del catálogo
+addColumn('sales', 'order_id', 'INTEGER REFERENCES orders(id) ON DELETE SET NULL');     // pedido web del que salió
+addColumn('sales', 'size', "TEXT NOT NULL DEFAULT ''");
+addColumn('sales', 'color', "TEXT NOT NULL DEFAULT ''");
+// Unidades que esta venta descontó del stock de la prenda (0 si vino de un pedido web: el pedido ya las apartó).
+addColumn('sales', 'stock_taken', 'INTEGER NOT NULL DEFAULT 0');
+db.exec('CREATE INDEX IF NOT EXISTS idx_sales_product ON sales(product_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_sales_order ON sales(order_id)');
 
 // Teléfono normalizado: solo dígitos. Un celular peruano de 9 dígitos recibe el 51 delante,
 // así "987 654 321", "+51987654321" y "51987654321" son la misma persona.

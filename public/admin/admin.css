@@ -440,3 +440,74 @@ dialog.modal::backdrop { background: rgb(22 26 35 / .5); }
   .slist .srow { grid-template-columns: auto 1fr auto; }
   .srow-act { grid-column: auto; }
 }
+
+/* Formularios en ventana: el error aparece junto al botón Guardar */
+.modal-foot .form-msg { flex: 1 1 100%; min-height: 0; margin: 0; }
+.modal-foot .form-msg:empty { display: none; }
+
+/* Avisos y marcas */
+.warn-box { margin-bottom: 1rem; padding: .8rem 1rem; background: #FFF6E5; border: 1px solid #F0D49B; border-radius: var(--radius); color: #6B4A0B; font-size: .95rem; }
+.warn-box a { color: inherit; font-weight: 600; }
+.sold-chip { display: inline-block; margin-top: .35rem; padding: .15rem .6rem; border-radius: 999px; background: color-mix(in srgb, var(--ok) 12%, var(--surface)); color: var(--ok); font-size: .82rem; font-weight: 700; }
+.order-tag { display: inline-block; margin-left: .4rem; padding: 0 .45rem; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: .78rem; }
+.btn-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.btn-ok:hover { background: color-mix(in srgb, var(--ok) 8%, transparent); }
+
+/* Registro de ventas */
+.sale-list { display: grid; gap: .6rem; }
+.sale { display: grid; grid-template-columns: 52px 1fr auto; gap: .9rem; align-items: start; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.sale-main .note { margin-top: .35rem; }
+.sale-side { display: flex; flex-direction: column; align-items: flex-end; gap: .1rem; white-space: nowrap; font-size: .92rem; }
+.sale-side strong { font-size: 1.05rem; }
+
+.picker { position: relative; }
+.pick-results { display: grid; gap: .3rem; margin-top: .4rem; }
+.pick-results:empty { display: none; }
+.pick { display: grid; grid-template-columns: 40px 1fr auto; gap: .7rem; align-items: center; width: 100%; padding: .4rem .6rem; background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius); text-align: left; }
+.pick:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
+.pick:disabled { opacity: .55; cursor: not-allowed; }
+.pick .pthumb { width: 40px; }
+.pick-name { font-weight: 600; line-height: 1.25; }
+.pick-name small, .pick-side small { display: block; color: var(--muted); font-weight: 400; font-size: .8rem; }
+.pick-side { text-align: right; font-weight: 600; white-space: nowrap; }
+.pick-side small.out { color: var(--danger); font-weight: 600; }
+.pick-empty { padding: .5rem 0; }
+
+.sale-lines { display: grid; gap: .6rem; margin-bottom: .75rem; }
+.sale-lines:empty { display: none; }
+.sale-line { padding: .75rem; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); }
+.sale-line-head { display: grid; grid-template-columns: 44px 1fr auto; gap: .75rem; align-items: center; margin-bottom: .6rem; }
+.sale-line-head .pthumb { width: 44px; }
+.sale-line-head .muted { font-size: .85rem; }
+.sale-line-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; align-items: end; }
+.mini-field { display: grid; gap: .2rem; font-size: .85rem; font-weight: 600; }
+.sale-total { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 1rem; padding: .7rem 1rem; background: var(--ink); color: var(--paper); border-radius: var(--radius); }
+.sale-total strong { font-size: 1.25rem; }
+
+/* Gasté y vendí */
+.big-stats { display: grid; gap: .75rem; margin-bottom: 1rem; }
+@media (min-width: 700px) { .big-stats { grid-template-columns: repeat(3, 1fr); } }
+.big-stat { display: grid; gap: .15rem; padding: 1.1rem 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.big-l { color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.big-v { font-size: 1.9rem; font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.big-s { color: var(--muted); font-size: .9rem; }
+.big-stat.pos { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); background: color-mix(in srgb, var(--ok) 6%, var(--surface)); }
+.big-stat.pos .big-v { color: var(--ok); }
+.big-stat.neg { border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); background: color-mix(in srgb, var(--danger) 5%, var(--surface)); }
+.big-stat.neg .big-v { color: var(--danger); }
+.to-sell .muted { font-size: .92rem; }
+.to-sell p { margin-top: .3rem; }
+.dtable .pos { color: var(--ok); font-weight: 600; }
+.dtable .neg { color: var(--danger); font-weight: 600; }
+.dtable tfoot th { padding: .6rem .5rem; border-top: 2px solid var(--line); text-align: left; }
+.dtable tfoot th.num { text-align: right; }
+.top-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.top-list li { display: grid; grid-template-columns: 36px 1fr auto; gap: .7rem; align-items: center; }
+.top-list .pthumb { width: 36px; }
+.top-name { font-weight: 600; line-height: 1.25; }
+.top-name small { display: block; color: var(--muted); font-weight: 400; }
+.channel-list { display: grid; gap: .35rem; margin: .5rem 0 0; padding: 0; list-style: none; }
+.channel-list li { display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; font-size: .95rem; }
+.rep-grid > * { min-width: 0; } /* la tabla se desplaza dentro de su caja en vez de ensanchar la página */
+.dtable td.num, .dtable th.num { white-space: nowrap; }
+.big-v { overflow-wrap: anywhere; }

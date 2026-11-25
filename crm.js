@@ -8,8 +8,8 @@ const { db, tx, normPhone } = require('./db');
 const SALE_STATUSES = "('confirmado','enviado','entregado')";
 
 // Compras de un cliente = pedidos de la tienda + ventas registradas a mano (WhatsApp, Instagram, en persona…).
-// Las ventas registradas con canal "tienda" no se suman: ese dinero ya está en su pedido.
-const MANUAL_SALES = "FROM sales s WHERE s.customer_id = c.id AND s.channel != 'tienda'";
+// Las ventas que salen de un pedido web (o antiguas con canal "tienda") no se suman: ese dinero ya está en su pedido.
+const MANUAL_SALES = "FROM sales s WHERE s.customer_id = c.id AND s.order_id IS NULL AND s.channel != 'tienda'";
 const CUSTOMER_STATS = `
   SELECT c.*,
     (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id AND o.status != 'cancelado')

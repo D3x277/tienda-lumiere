@@ -2,13 +2,14 @@
 // Panel de administración: prendas, categorías, pedidos y configuración de la tienda.
 // Depende de dom.js (h, $, api, fmtMoney, applyAccent, norm).
 
-const A = { settings: {}, categories: [], seasons: [], products: [], orders: [], accounts: [], tab: 'resumen', q: '', orderFilter: '', accQ: '' };
+const A = { settings: {}, categories: [], seasons: [], products: [], orders: [], accounts: [], tab: 'negocio', q: '', orderFilter: '', accQ: '' };
 const root = $('#root');
 // Menú lateral, agrupado como en un CRM. Cada sección es una vista (función) más abajo o en crm.js / reports.js.
 const NAV = [
-  ['Ventas', [['resumen', 'Resumen'], ['clientes', 'Clientes'], ['pedidos', 'Pedidos'], ['campanas', 'Campañas']]],
+  ['Mi negocio', [['negocio', 'Gasté y vendí'], ['resumen', 'Estadísticas web']]],
+  ['Ventas', [['pedidos', 'Pedidos web'], ['ventas', 'Registro de ventas'], ['clientes', 'Clientes'], ['campanas', 'Campañas']]],
   ['Catálogo', [['prendas', 'Prendas'], ['categorias', 'Categorías'], ['temporadas', 'Temporadas']]],
-  ['Compras', [['inventario', 'Inventario y ventas'], ['cuentas', 'Compras Shein']]],
+  ['Compras', [['cuentas', 'Compras Shein']]],
   ['Ajustes', [['tienda', 'Mi tienda']]],
 ];
 const TABS = NAV.flatMap(([, items]) => items);
@@ -136,12 +137,12 @@ function drawTabs() {
 function route() {
   if (!$('#panel')) return;
   const [id, param] = location.hash.slice(1).split('/');
-  A.tab = TABS.some((t) => t[0] === id) ? id : 'resumen';
+  A.tab = TABS.some((t) => t[0] === id) ? id : 'negocio';
   drawTabs();
   document.title = `${TABS.find((t) => t[0] === A.tab)[1]} · Panel`;
   const views = {
-    resumen: reportsView, clientes: customersView, pedidos: ordersView, campanas: campaignsView,
-    prendas: productsView, categorias: categoriesView, temporadas: seasonsView, inventario: inventoryView, cuentas: accountsView, tienda: settingsView,
+    negocio: businessView, resumen: reportsView, clientes: customersView, pedidos: ordersView, ventas: salesView, campanas: campaignsView,
+    prendas: productsView, categorias: categoriesView, temporadas: seasonsView, cuentas: accountsView, tienda: settingsView,
   };
   $('#panel').replaceChildren(views[A.tab](param));
 }
@@ -218,6 +219,7 @@ function productRow(p) {
     h('div', { class: 'pcol' }, stockEl('')),
     h('div', { class: 'pact' },
       h('label', { class: 'switch', title: 'Visible en la tienda' }, toggle, h('span', { class: 'track' })),
+      soldOutButton(p),
       h('button', { class: 'btn btn-small', type: 'button', onclick: () => openProductEditor(p) }, 'Editar'),
       confirmButton({
         label: 'Eliminar', confirmLabel: '¿Seguro? Toca otra vez', cls: 'btn btn-danger btn-small',
@@ -231,6 +233,37 @@ function productRow(p) {
         },
       })));
   return row;
+}
+
+// Agotada: el stock pasa a 0 y la web muestra la etiqueta "Agotado". Reactivar pide cuántas unidades llegaron.
+const setStock = async (p, stock, msg) => {
+  Object.assign(p, await call(`/api/admin/products/${p.id}/stock`, { method: 'PUT', body: { stock } }));
+  route(); toast(msg);
+};
+
+function soldOutButton(p) {
+  const out = p.stock !== null && p.stock <= 0;
+  if (out) return h('button', { class: 'btn btn-small btn-ok', type: 'button', onclick: () => openRestock(p) }, 'Reactivar');
+  return confirmButton({
+    label: 'Marcar agotada', confirmLabel: '¿Agotada? Toca otra vez', cls: 'btn btn-small',
+    onConfirm: async () => { try { await setStock(p, 0, `"${p.name}" ahora sale como agotada`); } catch (ex) { toast(ex.message); } },
+  });
+}
+
+function openRestock(p) {
+  formModal({
+    title: `Reactivar · ${p.name}`,
+    saveLabel: 'Reactivar prenda',
+    body: [
+      ffield('¿Cuántas unidades te llegaron?', h('input', { class: 'input', name: 'units', type: 'number', min: '1', step: '1', inputmode: 'numeric', placeholder: 'Ej. 3' }),
+        'Déjalo vacío si no quieres controlar el stock de esta prenda.'),
+    ],
+    onSave: async (el) => {
+      const v = el.units.value.trim();
+      if (v !== '' && !(Number.parseInt(v, 10) > 0)) throw new Error('Escribe 1 o más unidades, o déjalo vacío.');
+      await setStock(p, v, `"${p.name}" vuelve a estar disponible`);
+    },
+  });
 }
 
 // Campo de etiquetas: se escribe una talla o color y se agrega con Enter o coma.
@@ -342,8 +375,8 @@ function openProductEditor(existing) {
     field('Nombre', h('input', { class: 'input', name: 'pname', maxlength: '120', value: p.name, placeholder: 'Ej. Vestido midi de lino', required: true })),
     field('Descripción', h('textarea', { class: 'textarea', name: 'description', maxlength: '2000', placeholder: 'Tela, corte, cuidados…' }, p.description)),
     h('div', { class: 'grid2' },
-      field('Precio', h('input', { class: 'input', name: 'price', type: 'number', min: '0', step: '0.01', inputmode: 'decimal', value: p.price, placeholder: '0.00' }), `En ${A.settings.currency}`),
-      field('Precio anterior (opcional)', h('input', { class: 'input', name: 'compare', type: 'number', min: '0', step: '0.01', inputmode: 'decimal', value: p.compare_price ?? '', placeholder: '0.00' }), 'Si lo llenas, se muestra tachado como oferta')),
+      field('Precio', h('input', { class: 'input', name: 'price', type: 'text', inputmode: 'decimal', autocomplete: 'off', value: p.price, placeholder: '0.00' }), `En ${A.settings.currency}. Puedes usar coma o punto.`),
+      field('Precio anterior (opcional)', h('input', { class: 'input', name: 'compare', type: 'text', inputmode: 'decimal', autocomplete: 'off', value: p.compare_price ?? '', placeholder: '0.00' }), 'Si lo llenas, se muestra tachado como oferta')),
     h('div', { class: 'grid2' },
       field('Categoría', h('select', { class: 'select', name: 'category', value: p.category_id ?? '' },
         h('option', { value: '' }, 'Sin categoría'), A.categories.map((c) => h('option', { value: c.id }, c.name)))),
@@ -556,6 +589,7 @@ function ordersView() {
         o.customer_id ? h('a', { class: 'who-link', href: `#clientes/${o.customer_id}` }, h('strong', {}, o.customer_name)) : h('strong', {}, o.customer_name),
         o.customer_phone ? [' ', h('a', { href: `tel:${digits}` }, o.customer_phone)] : null,
         o.customer_email ? [' · ', h('span', { class: 'muted' }, o.customer_email)] : null,
+        o.sold ? h('span', { class: 'sold-chip' }, '✓ Registrado como venta') : null,
         o.payment_method ? h('span', { class: `pay-chip${o.payment_method === 'tarjeta' ? ' is-card' : ''}` },
           o.payment_method === 'tarjeta' ? 'Pidió pagar con tarjeta (pedido antiguo)' : 'Yape, Plin o transferencia') : null,
         o.notes ? h('p', { class: 'note' }, o.notes) : null),
@@ -564,8 +598,12 @@ function ordersView() {
         h('span', {}, money(it.price * it.qty))))),
       h('div', { class: 'order-foot' },
         h('div', { class: 'head-actions' },
+          !o.sold && o.status !== 'cancelado'
+            ? h('button', { class: 'btn btn-small btn-primary', type: 'button', onclick: () => openSaleEditor({ order: o }) }, 'Registrar venta')
+            : null,
+          o.sold ? h('a', { class: 'btn btn-small', href: '#ventas' }, 'Ver venta') : null,
           wa ? h('a', { class: 'btn btn-small', href: `https://wa.me/${wa}`, target: '_blank', rel: 'noopener' }, 'Escribir por WhatsApp') : null,
-          confirmButton({
+          o.sold ? null : confirmButton({
             label: 'Eliminar', cls: 'btn btn-danger btn-small',
             confirmLabel: o.status === 'cancelado' ? 'Toca otra vez para eliminar' : 'Eliminar (vuelve al stock)',
             onConfirm: async () => {
@@ -594,8 +632,13 @@ function ordersView() {
   }, h('option', { value: '' }, 'Todos los estados'), Object.entries(STATUS).map(([k, v]) => h('option', { value: k }, v)));
 
   draw();
+  const old = A.orders.filter((o) => o.status === 'nuevo' && !o.sold && Date.now() - Date.parse(`${o.created_at.replace(' ', 'T')}Z`) > 3 * 864e5).length;
   return h('div', {},
-    h('div', { class: 'panel-head' }, h('h2', { class: 'title' }, 'Pedidos'), h('div', { class: 'filters' }, filter)),
+    h('div', { class: 'panel-head' }, h('h2', { class: 'title' }, 'Pedidos web'), h('div', { class: 'filters' }, filter)),
+    h('p', { class: 'hint-block' }, 'Un pedido web es una intención de compra y aparta las prendas. Cuando se concrete por WhatsApp, toca ',
+      h('strong', {}, 'Registrar venta'), '. Si no se concreta, cámbialo a ', h('strong', {}, 'Cancelado'), ' para liberar las prendas.'),
+    old ? h('div', { class: 'warn-box' }, h('strong', {}, `${plural(old, 'pedido lleva', 'pedidos llevan')} más de 3 días sin confirmar.`),
+      ' Sus prendas siguen apartadas: regístralos como venta o cancélalos.') : null,
     list);
 }
 
@@ -624,14 +667,15 @@ function formModal({ title, body, saveLabel, onSave, onDelete, deleteLabel, wide
       e.preventDefault();
       msg.textContent = ''; save.disabled = true;
       try { await onSave(e.target.elements); dlg.close(); }
-      catch (ex) { msg.textContent = ex.message; save.disabled = false; }
+      catch (ex) { msg.textContent = ex.message; save.disabled = false; msg.scrollIntoView({ block: 'nearest' }); }
     },
   },
   h('div', { class: 'modal-head' },
     h('h2', { class: 'title', id: 'fm-title', style: 'font-size:1.4rem' }, title),
     h('button', { class: 'btn btn-quiet btn-small', type: 'button', onclick: () => dlg.close() }, 'Cerrar')),
-  h('div', { class: 'modal-body' }, body, msg),
+  h('div', { class: 'modal-body' }, body),
   h('div', { class: 'modal-foot' },
+    msg,
     save,
     h('button', { class: 'btn', type: 'button', onclick: () => dlg.close() }, 'Cancelar'),
     h('span', { class: 'spacer' }),
@@ -678,129 +722,34 @@ function openAccountEditor(acc) {
   });
 }
 
-// Compra con detalle, como el reporte de compras: al elegir la cantidad de productos aparece una fila
-// por cada uno (nombre, talla/color, tipo, precio en el pedido, unidades, precio de venta y de dónde salió el precio).
-// El "costo real" reparte el envío, impuestos y descuentos del pedido entre sus prendas.
-const MAX_LINES = 30;
-const DEFAULT_TYPES = ['Vestido fiesta', 'Vestido largo', 'Playa', 'Conjunto', 'Top', 'Falda', 'Pantalón', 'Accesorio'];
-const PRICE_SOURCE = { pedido: 'Del pedido', pagina: 'De la página', aprox: 'Aproximado' };
-const allTypes = () => [...new Set([...DEFAULT_TYPES, ...A.accounts.flatMap((a) => a.purchases.flatMap((p) => p.lines.map((l) => l.type)))])].filter(Boolean);
-const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
-const pctFmt = (x) => `${Math.round(x * 100)} %`;
-
+// Compra Shein: solo lo que importa para el reporte. Fecha y cuánto gastaste; lo demás es opcional.
+// Las compras antiguas registradas con detalle por producto conservan ese detalle.
 function openPurchaseEditor(acc, pur) {
-  const legacy = pur && !pur.lines.length; // compra registrada antes, sin detalle
-  const blank = () => ({ id: null, name: '', variant: '', type: '', price: '', qty: 1, sale_price: '', price_source: 'pedido', sold: 0 });
-  const rows = (pur?.lines.length ? pur.lines : legacy ? [] : [blank()]).map((l) => ({ ...blank(), ...l, sale_price: l.sale_price ?? '' }));
-
-  const count = h('input', {
-    class: 'input', type: 'number', min: legacy ? '0' : '1', max: String(MAX_LINES), step: '1', inputmode: 'numeric',
-    value: String(rows.length), 'aria-describedby': 'lines-hint',
-    oninput: () => {
-      const n = Math.max(0, Math.min(MAX_LINES, Number.parseInt(count.value, 10) || 0));
-      while (rows.length < n) rows.push(blank());
-      rows.length = n; // si bajas el número, se quitan las últimas filas
-      drawLines();
-    },
-  });
-  const linesBox = h('div', { class: 'plines' });
-  const hasTotal = pur && pur.lines.length;
-  const totalPaid = h('input', { class: 'input', name: 'total', type: 'number', min: '0', step: '0.01', inputmode: 'decimal', value: hasTotal ? pur.cost : '', oninput: () => drawLines(false) });
-  const totalBox = h('div', { class: 'ptotal', 'aria-live': 'polite' });
-  const legacyBox = legacy ? h('div', { class: 'grid2' },
-    ffield('Cantidad de prendas', h('input', { class: 'input', name: 'items', type: 'number', min: '1', step: '1', value: pur.items })),
-    ffield('Cuánto te costó (total)', h('input', { class: 'input', name: 'cost', type: 'number', min: '0', step: '0.01', value: pur.cost }))) : null;
-  const subs = [];
-
-  const sumLines = () => rows.reduce((s, r) => s + num(r.price) * num(r.qty), 0);
-  const paid = () => (totalPaid.value !== '' ? num(totalPaid.value) : sumLines());
-  const factor = () => (sumLines() ? paid() / sumLines() : 1);
-
-  function drawTotal() {
-    const units = rows.reduce((s, r) => s + num(r.qty), 0);
-    const f = factor();
-    const sale = rows.reduce((s, r) => s + num(r.sale_price) * num(r.qty), 0);
-    const priced = rows.filter((r) => num(r.sale_price)).reduce((s, r) => s + num(r.price) * f * num(r.qty), 0);
-    const diff = paid() - sumLines();
-    totalPaid.placeholder = `${sumLines().toFixed(2)} (suma de los productos)`;
-    subs.forEach((fn) => fn(f));
-    totalBox.replaceChildren(
-      h('div', {}, h('span', {}, plural(units, 'unidad', 'unidades')),
-        h('span', {}, `Productos ${money(sumLines())}`),
-        Math.abs(diff) >= 0.005 ? h('span', {}, `${diff > 0 ? 'Envío e impuestos +' : 'Descuentos −'}${money(Math.abs(diff))}`) : null),
-      h('div', {}, h('strong', {}, `Pagado ${money(paid())}`),
-        sale ? h('span', {}, `Venta proyectada ${money(sale)} · Ganancia ${money(sale - priced)} (${pctFmt((sale - priced) / sale)})`) : null));
-  }
-
-  function drawLines(rebuild = true) {
-    if (legacyBox) legacyBox.hidden = rows.length > 0;
-    paidField.hidden = !rows.length;
-    totalBox.hidden = !rows.length;
-    headRow.hidden = !rows.length;
-    if (rebuild) {
-      subs.length = 0;
-      linesBox.replaceChildren(...rows.map((r, i) => {
-        const real = h('span', { class: 'pl-sub', title: 'Costo real por unidad (con envío, impuestos y descuentos)' });
-        subs.push((f) => { real.textContent = num(r.price) ? money(num(r.price) * f) : '—'; });
-        const set = (k) => (e) => { r[k] = e.target.value; drawTotal(); };
-        const lbl = (t) => `${t} del producto ${i + 1}`;
-        return h('div', { class: 'pline pline-full' },
-          h('span', { class: 'pl-n', 'aria-hidden': 'true' }, i + 1),
-          h('input', { class: 'input pl-name', placeholder: `Producto ${i + 1}, ej. Vestido mini encaje`, maxlength: '120', value: r.name, 'aria-label': lbl('Nombre'), oninput: set('name') }),
-          h('input', { class: 'input', placeholder: 'Talla / color', maxlength: '40', value: r.variant, 'aria-label': lbl('Talla y color'), oninput: set('variant') }),
-          h('input', { class: 'input', placeholder: 'Tipo', maxlength: '30', list: 'type-list', value: r.type, 'aria-label': lbl('Tipo de prenda'), oninput: set('type') }),
-          h('input', { class: 'input', type: 'number', min: '0', step: '0.01', inputmode: 'decimal', placeholder: 'Precio', value: r.price, 'aria-label': lbl('Precio en el pedido'), oninput: set('price') }),
-          h('input', { class: 'input', type: 'number', min: String(Math.max(1, r.sold)), step: '1', inputmode: 'numeric', placeholder: 'Unid.', value: r.qty, 'aria-label': lbl('Unidades'), oninput: set('qty') }),
-          h('input', { class: 'input', type: 'number', min: '0', step: '0.01', inputmode: 'decimal', placeholder: 'Venta', value: r.sale_price, 'aria-label': lbl('Precio de venta proyectado'), oninput: set('sale_price') }),
-          h('select', { class: 'select', value: r.price_source, 'aria-label': lbl('Origen del precio'), onchange: set('price_source') },
-            Object.entries(PRICE_SOURCE).map(([k, v]) => h('option', { value: k }, v))),
-          real);
-      }));
-    }
-    drawTotal();
-  }
-
-  const paidField = ffield('Total pagado (opcional)', totalPaid, 'Lo que te cobró Shein, con envío, impuestos y descuentos. Si lo dejas vacío, se usa la suma de los productos.');
-  const headRow = h('div', { class: 'pline pline-full pline-head', 'aria-hidden': 'true' },
-    h('span', {}, '#'), h('span', {}, 'Prenda'), h('span', {}, 'Talla / color'), h('span', {}, 'Tipo'), h('span', {}, 'Precio pedido'),
-    h('span', {}, 'Unid.'), h('span', {}, 'Precio venta'), h('span', {}, 'Origen del precio'), h('span', {}, 'Costo real'));
-  drawLines();
-
-  const accountSel = pur && A.accounts.length > 1
-    ? ffield('Cuenta', h('select', { class: 'select', name: 'account', value: String(pur.account_id) }, A.accounts.map((a) => h('option', { value: String(a.id) }, a.email))))
+  const accounts = A.accounts;
+  const accountSel = accounts.length > 1 || !acc
+    ? ffield('Cuenta Shein', h('select', { class: 'select', name: 'account', value: String(pur?.account_id ?? acc?.id ?? accounts[0]?.id ?? '') },
+      accounts.map((a) => h('option', { value: String(a.id) }, a.email))))
     : null;
-
   formModal({
-    title: pur ? 'Editar compra' : `Nueva compra · ${acc.email}`,
+    title: pur ? 'Editar compra' : 'Registrar compra',
     saveLabel: 'Guardar compra',
-    wide: true,
     body: [
-      h('datalist', { id: 'type-list' }, allTypes().map((t) => h('option', { value: t }))),
-      h('div', { class: 'grid4' },
-        ffield('Fecha de compra', h('input', { class: 'input', name: 'date', type: 'date', value: pur?.date || today(), max: today() })),
-        ffield('N° de pedido Shein', h('input', { class: 'input', name: 'order_number', maxlength: '40', value: pur?.order_number || '', placeholder: 'GSH19P59C00NH95' })),
-        ffield('Llegada aprox. (opcional)', h('input', { class: 'input', name: 'arrival', maxlength: '40', value: pur?.arrival || '', placeholder: '16-29 nov' })),
-        h('label', { class: 'field' }, h('span', { class: 'label' }, 'Cantidad de productos'), count)),
-      h('p', { class: 'hint-block', id: 'lines-hint' }, 'Aparece una fila por producto. Si compraste 2 iguales, pon 2 en "Unid.". El precio de venta es opcional y sirve para las proyecciones.'),
       accountSel,
-      legacy ? h('p', { class: 'muted', style: 'margin-bottom:.75rem' }, 'Esta compra se registró sin detalle. Escribe una cantidad de productos para detallarla.') : null,
-      legacyBox,
-      h('div', { class: 'plines-scroll' }, headRow, linesBox),
-      paidField,
-      totalBox,
-      ffield('Nota (opcional)', h('textarea', { class: 'textarea', name: 'description', rows: '2', maxlength: '500', placeholder: 'Ej. cupón usado, "los 2 pañuelos son aproximados"…' }, pur?.description || '')),
+      h('div', { class: 'grid2' },
+        ffield('Fecha de compra', h('input', { class: 'input', name: 'date', type: 'date', value: pur?.date || today(), max: today() })),
+        ffield(`¿Cuánto gastaste? (${A.settings.currency})`, h('input', { class: 'input', name: 'cost', type: 'text', inputmode: 'decimal', autocomplete: 'off', value: pur ? pur.cost : '', placeholder: 'Ej. 245,90' }),
+          'El total que te cobró Shein, con envío y descuentos.')),
+      h('div', { class: 'grid2' },
+        ffield('Prendas que llegan (opcional)', h('input', { class: 'input', name: 'items', type: 'number', min: '0', step: '1', inputmode: 'numeric', value: pur?.items || '', placeholder: 'Ej. 8' })),
+        ffield('N° de pedido Shein (opcional)', h('input', { class: 'input', name: 'order_number', maxlength: '40', value: pur?.order_number || '', placeholder: 'GSH19P59C00NH95' }))),
+      ffield('Nota (opcional)', h('textarea', { class: 'textarea', name: 'description', rows: '2', maxlength: '500', placeholder: 'Ej. cupón usado, qué prendas trae, llega 16-29 nov…' }, pur?.description || '')),
+      pur?.lines.length ? h('p', { class: 'hint-block' }, `Esta compra tiene ${plural(pur.lines.length, 'producto detallado', 'productos detallados')} de antes; se conservan.`) : null,
     ],
     onSave: async (el) => {
-      const body = {
-        date: el.date.value, description: el.description.value, order_number: el.order_number.value, arrival: el.arrival.value,
-        account_id: el.account ? el.account.value : undefined,
-      };
-      if (rows.length) {
-        body.total = totalPaid.value;
-        body.lines = rows.map((r) => ({ id: r.id, name: r.name, variant: r.variant, type: r.type, price: r.price, qty: r.qty, sale_price: r.sale_price, price_source: r.price_source }));
-      } else if (legacy) Object.assign(body, { items: el.items.value, cost: el.cost.value });
-      else throw new Error('Escribe cuántos productos compraste');
-      A.accounts = await call(pur ? `/api/admin/purchases/${pur.id}` : `/api/admin/accounts/${acc.id}/purchases`, { method: pur ? 'PUT' : 'POST', body });
+      const accountId = el.account ? el.account.value : String(acc.id);
+      if (!accountId) throw new Error('Primero registra una cuenta Shein.');
+      const body = { date: el.date.value, cost: el.cost.value, items: el.items.value, order_number: el.order_number.value, description: el.description.value, account_id: accountId };
+      A.accounts = await call(pur ? `/api/admin/purchases/${pur.id}` : `/api/admin/accounts/${accountId}/purchases`, { method: pur ? 'PUT' : 'POST', body });
       route(); toast('Compra guardada');
     },
     onDelete: pur ? async () => {
@@ -838,14 +787,14 @@ function accountCard(acc) {
       h('button', { class: 'btn btn-small', type: 'button', onclick: () => openAccountEditor(acc) }, 'Editar')),
     acc.notes ? h('p', { class: 'note' }, acc.notes) : null,
     h('div', { class: 'acc-stats' },
-      h('span', {}, h('strong', {}, plural(acc.total_items, 'unidad', 'unidades'))),
-      h('span', {}, plural(acc.purchases.length, 'compra', 'compras')),
+      h('span', {}, h('strong', {}, plural(acc.purchases.length, 'compra', 'compras'))),
+      acc.total_items ? h('span', {}, plural(acc.total_items, 'prenda', 'prendas')) : null,
       h('span', {}, 'Gastado ', h('strong', {}, money(acc.total_cost))),
       acc.total_items ? h('span', { class: 'muted' }, `${money(avg)} por unidad`) : null),
     acc.purchases.length
       ? h('ul', { class: 'purchases' }, acc.purchases.map((p) => h('li', {},
         h('div', {},
-          h('span', { class: 'pdate' }, dayLabel(p.date)), ' · ', plural(p.items, 'unidad', 'unidades'),
+          h('span', { class: 'pdate' }, dayLabel(p.date)), p.items ? [' · ', plural(p.items, 'prenda', 'prendas')] : null,
           p.order_number ? h('span', { class: 'muted' }, ` · ${p.order_number}`) : null,
           p.arrival ? h('span', { class: 'muted' }, ` · llega ${p.arrival}`) : null,
           p.lines.length ? h('ul', { class: 'plines-mini' }, p.lines.map((l) => h('li', {},
@@ -883,14 +832,15 @@ function accountsView() {
   return h('div', {},
     h('div', { class: 'panel-head' },
       h('h2', { class: 'title' }, 'Compras Shein'),
-      h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openAccountEditor(null) }, 'Nueva cuenta')),
-    h('p', { class: 'muted', style: 'margin-bottom:1rem' }, 'Registro privado de tus cuentas de proveedor y lo que compraste con cada una. Tus clientes no ven nada de esto.'),
+      h('div', { class: 'head-actions' },
+        all.length ? h('button', { class: 'btn btn-primary', type: 'button', onclick: () => openPurchaseEditor(null, null) }, 'Registrar compra') : null,
+        h('button', { class: all.length ? 'btn' : 'btn btn-primary', type: 'button', onclick: () => openAccountEditor(null) }, 'Nueva cuenta'))),
+    h('p', { class: 'muted', style: 'margin-bottom:1rem' }, 'Tus cuentas Shein (correo y contraseña cifrada) y cuánto gastaste en cada compra. Las prendas que lleguen las subes en Prendas. Tus clientes no ven nada de esto.'),
     all.length ? h('div', { class: 'stats' },
-      stat('Cuentas', all.length),
-      stat('Compras', totalBuys),
-      stat('Unidades compradas', totalItems),
       stat('Total gastado', money(totalCost)),
-      totalItems ? stat('Costo por unidad', money(totalCost / totalItems)) : null) : null,
+      stat('Compras', totalBuys),
+      stat('Cuentas', all.length),
+      totalItems ? stat('Prendas compradas', totalItems) : null) : null,
     all.length > 4 ? h('div', { style: 'margin-bottom:1rem' }, h('input', {
       class: 'input', type: 'search', placeholder: 'Buscar por correo o nota', 'aria-label': 'Buscar cuenta', value: A.accQ,
       oninput: (e) => { A.accQ = e.target.value; draw(); },

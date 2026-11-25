@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const { db, getSettings, setSettings, publicSettings, tx, normPhone, upsertCustomer } = require('./db');
 const auth = require('./auth');
 const vault = require('./vault');
+const { orderHasSales } = require('./sales');
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '127.0.0.1';
@@ -114,7 +115,8 @@ function listSeasons(onlyPublic) {
 }
 
 const money = (v) => {
-  const n = Number(v);
+  // "35,50" y "35.50" valen lo mismo. Solo se convierte una coma decimal; "1,240" no se toca.
+  const n = Number(typeof v === 'string' ? v.trim().replace(/^(\d*),(\d{1,2})$/, '$1.$2') : v);
   if (!Number.isFinite(n) || n < 0 || n > 1_000_000) return null;
   return Math.round(n * 100);
 };
@@ -283,6 +285,7 @@ const toOrder = (r) => ({
   customer_email: r.customer_email, notes: r.notes, payment_method: r.payment_method,
   items: JSON.parse(r.items).map((i) => ({ ...i, price: i.price_cents / 100 })),
   total: r.total_cents / 100, status: r.status, created_at: r.created_at,
+  sold: orderHasSales(r.id), // ya se registró como venta
 });
 
 // ---------------------------------------------------------------- rutas
@@ -425,6 +428,20 @@ route('PUT', '/api/admin/products/:id', async ({ req, params }) => {
   return productById(saveProduct(cleanProduct(await readJson(req)), id));
 }, { admin: true });
 
+// Agotada = stock 0. Reactivar = poner las unidades que llegaron (vacío = sin límite).
+route('PUT', '/api/admin/products/:id/stock', async ({ req, params }) => {
+  const id = intParam(params.id);
+  if (!db.prepare('SELECT 1 FROM products WHERE id = ?').get(id)) throw new HttpError(404, 'La prenda no existe');
+  const b = await readJson(req);
+  let stock = null;
+  if (b.stock !== '' && b.stock != null) {
+    stock = Number.parseInt(b.stock, 10);
+    if (!Number.isInteger(stock) || stock < 0 || stock > 100000) throw bad('Escribe cuántas unidades tienes');
+  }
+  db.prepare("UPDATE products SET stock = ?, updated_at = datetime('now') WHERE id = ?").run(stock, id);
+  return productById(id);
+}, { admin: true });
+
 route('DELETE', '/api/admin/products/:id', ({ params }) => {
   db.prepare('DELETE FROM products WHERE id = ?').run(intParam(params.id));
   return { ok: true };
@@ -528,6 +545,7 @@ route('DELETE', '/api/admin/orders/:id', ({ params }) => {
   tx(() => {
     const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
     if (!order) throw new HttpError(404, 'El pedido no existe');
+    if (orderHasSales(id)) throw new HttpError(409, 'Este pedido ya se registró como venta. Borra primero la venta en Registro de ventas.');
     restock(order);
     db.prepare('DELETE FROM orders WHERE id = ?').run(id);
   });
@@ -542,6 +560,7 @@ route('PUT', '/api/admin/orders/:id', async ({ req, params }) => {
     const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(id);
     if (!order) throw new HttpError(404, 'El pedido no existe');
     if (order.status === 'cancelado' && status !== 'cancelado') throw bad('Un pedido cancelado no se puede reactivar');
+    if (status === 'cancelado' && orderHasSales(id)) throw new HttpError(409, 'Este pedido ya se registró como venta. Borra primero la venta en Registro de ventas.');
     if (status === 'cancelado' && order.status !== 'cancelado') {
       // Al cancelar, las prendas vuelven al stock.
       for (const it of JSON.parse(order.items)) db.prepare('UPDATE products SET stock = stock + ? WHERE id = ? AND stock IS NOT NULL').run(it.qty, it.id);
@@ -643,12 +662,15 @@ function cleanPurchase(b) {
     return { date, items, cost, shipping: cost - sum, description, order_number, arrival, account_id, lines };
   }
 
-  // Sin detalle (compras registradas antes): totales escritos a mano.
-  const items = Number.parseInt(b.items, 10);
-  if (!Number.isInteger(items) || items < 1 || items > 10000) throw bad('Escribe cuántas prendas compraste');
+  // Compra simple: cuánto gastaste (y, si quieres, cuántas prendas). Si la compra ya tenía detalle, se conserva.
   const cost = money(b.cost);
-  if (cost === null || b.cost === '' || b.cost == null) throw bad('Escribe cuánto te costó');
-  return { date, items, cost, shipping: 0, description, order_number, arrival, account_id, lines: [] };
+  if (!cost) throw bad('Escribe cuánto gastaste en esta compra');
+  let items = 0;
+  if (b.items !== '' && b.items != null) {
+    items = Number.parseInt(b.items, 10);
+    if (!Number.isInteger(items) || items < 0 || items > 10000) throw bad('La cantidad de prendas no es válida');
+  }
+  return { date, items, cost, shipping: null, description, order_number, arrival, account_id, lines: null };
 }
 
 const PRICE_SOURCES = ['pedido', 'pagina', 'aprox'];
@@ -730,8 +752,8 @@ route('POST', '/api/admin/accounts/:id/purchases', async ({ req, params }) => {
   const p = cleanPurchase(await readJson(req));
   tx(() => {
     const pid = Number(db.prepare(`INSERT INTO supplier_purchases (account_id, bought_on, items_count, cost_cents, shipping_cents, description, order_number, arrival)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(id, p.date, p.items, p.cost, p.shipping, p.description, p.order_number, p.arrival).lastInsertRowid);
-    savePurchaseLines(pid, p.lines);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(id, p.date, p.items, p.cost, p.shipping ?? 0, p.description, p.order_number, p.arrival).lastInsertRowid);
+    if (p.lines) savePurchaseLines(pid, p.lines);
   });
   return listAccounts();
 }, { admin: true });
@@ -741,11 +763,15 @@ route('PUT', '/api/admin/purchases/:id', async ({ req, params }) => {
   const p = cleanPurchase(await readJson(req));
   if (p.account_id) accountExists(p.account_id); // permite mover la compra a otra cuenta
   tx(() => {
-    const r = db.prepare(`UPDATE supplier_purchases SET bought_on = ?, items_count = ?, cost_cents = ?, shipping_cents = ?, description = ?,
+    const old = db.prepare('SELECT * FROM supplier_purchases WHERE id = ?').get(id);
+    if (!old) throw new HttpError(404, 'La compra no existe');
+    // Compra simple sobre una que tenía detalle: el detalle y su envío se conservan; solo cambia el total y los datos.
+    const keepDetail = !p.lines && db.prepare('SELECT 1 FROM supplier_purchase_items WHERE purchase_id = ?').get(id);
+    db.prepare(`UPDATE supplier_purchases SET bought_on = ?, items_count = ?, cost_cents = ?, shipping_cents = ?, description = ?,
       order_number = ?, arrival = ?, account_id = COALESCE(?, account_id) WHERE id = ?`)
-      .run(p.date, p.items, p.cost, p.shipping, p.description, p.order_number, p.arrival, p.account_id, id);
-    if (!r.changes) throw new HttpError(404, 'La compra no existe');
-    savePurchaseLines(id, p.lines);
+      .run(p.date, keepDetail && !p.items ? old.items_count : p.items, p.cost, p.shipping ?? old.shipping_cents, p.description,
+        p.order_number, p.arrival || (p.lines ? '' : old.arrival), p.account_id, id);
+    if (p.lines) savePurchaseLines(id, p.lines);
   });
   return listAccounts();
 }, { admin: true });
