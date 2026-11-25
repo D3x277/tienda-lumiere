@@ -96,7 +96,17 @@ body { background: var(--paper); }
 .cart-btn.has-items .count { background: var(--pill); color: #fff; animation: pop .35s ease; }
 .cart-ico { flex: none; width: 21px; height: 21px; margin-right: -.15rem; background: currentColor; -webkit-mask: var(--i-cart) center / contain no-repeat; mask: var(--i-cart) center / contain no-repeat; }
 .cart-btn:hover .cart-ico { animation: pop .35s ease; }
-@media (max-width: 380px) { .cart-label { display: none; } .cart-btn { padding-left: .75rem; } }
+/* Celular: solo el ícono del carrito con el número en una burbuja, para que el logo quede centrado */
+@media (max-width: 699px) {
+  .cart-label { display: none; }
+  .cart-btn { position: relative; justify-content: center; width: 46px; height: 46px; min-height: 0; padding: 0; border-radius: 50%; }
+  .cart-ico { width: 22px; height: 22px; margin: 0; }
+  .cart-btn .count {
+    position: absolute; top: -5px; right: -6px; min-width: 22px; height: 22px; padding: 0 .3rem;
+    border-radius: 999px; border: 2px solid var(--paper-2); font-size: .75rem; line-height: 1;
+  }
+  .cart-btn:not(.has-items) .count { display: none; } /* con 0 no se muestra el número */
+}
 
 @keyframes pop { 40% { transform: scale(1.18); } }
 
