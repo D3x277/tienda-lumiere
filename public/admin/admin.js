@@ -880,7 +880,7 @@ const SWATCHES = [['#892E54', 'Rosa Lumiere'], ['#B35C8A', 'Rosa empolvado'], ['
 
 function settingsView() {
   const s = A.settings;
-  const draft = { logo: s.logo, hero_image: s.hero_image, accent: s.accent };
+  const draft = { logo: s.logo, hero_image: s.hero_image, about_image: s.about_image, accent: s.accent };
 
   const colorInput = h('input', { type: 'color', value: draft.accent.toLowerCase(), 'aria-label': 'Elegir otro color', oninput: (e) => setAccent(e.target.value.toUpperCase()) });
   const swatchEls = SWATCHES.map(([hex, name]) => h('button', {
@@ -911,6 +911,7 @@ function settingsView() {
             store_name: el.store_name.value, tagline: el.tagline.value, currency: el.currency.value, whatsapp: el.whatsapp.value,
             instagram: el.instagram.value, shipping_note: el.shipping_note.value, hero_title: el.hero_title.value,
             hero_subtitle: el.hero_subtitle.value, accent: draft.accent, logo: draft.logo, hero_image: draft.hero_image,
+            about_title: el.about_title.value, about_text: el.about_text.value, about_image: draft.about_image,
           },
         });
         applyAccent(A.settings.accent);
@@ -944,6 +945,15 @@ function settingsView() {
     h('div', { class: 'field' }, h('span', { class: 'label' }, 'Foto de portada (opcional)'),
       imageField({ value: draft.hero_image, wide: true, onChange: (u) => { draft.hero_image = u; } }),
       h('span', { class: 'hint' }, 'Mejor vertical (la modelo de cuerpo entero). Si no subes una, la portada usa la foto de tu temporada actual o de una prenda destacada.'))),
+  h('div', { class: 'box' },
+    h('h3', { class: 'sub' }, 'Nosotros'),
+    h('p', { class: 'muted' }, 'Cuéntales a tus clientas quién eres. Sale en la portada y en la página "Nosotros". Si dejas el texto vacío, la sección no se muestra.'),
+    field('Título', h('input', { class: 'input', name: 'about_title', maxlength: '80', value: s.about_title, placeholder: 'Ej. Nuestra historia' })),
+    field('Texto', h('textarea', { class: 'textarea', name: 'about_text', maxlength: '2000', rows: '7', placeholder: 'Cómo nació la marca, qué te inspira, cómo eliges las prendas…' }, s.about_text),
+      'Deja una línea en blanco para separar párrafos. El primer párrafo es el que sale en la portada.'),
+    h('div', { class: 'field' }, h('span', { class: 'label' }, 'Foto (opcional)'),
+      imageField({ value: draft.about_image, wide: true, onChange: (u) => { draft.about_image = u; } }),
+      h('span', { class: 'hint' }, 'Una foto tuya, de tu equipo o de tus prendas. Si no subes una, se usa la de la portada.'))),
   h('div', { class: 'savebar' }, saveBtn, h('a', { class: 'btn', href: '/', target: '_blank', rel: 'noopener' }, 'Ver mi tienda'), msg));
 
   // Contraseña

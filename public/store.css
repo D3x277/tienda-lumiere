@@ -22,6 +22,8 @@
   --i-lock: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'><rect x='5' y='10.5' width='14' height='10' rx='2'/><path d='M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5'/></svg>");
   --i-heart: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linejoin='round'><path d='M12 20.5S3.5 15.3 3.5 9.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8.5 2.2c0 6.1-8.5 11.3-8.5 11.3z'/></svg>");
   --i-heart-on: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 20.5S3.5 15.3 3.5 9.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8.5 2.2c0 6.1-8.5 11.3-8.5 11.3z' fill='black'/></svg>");
+  --i-cart: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 3.5h2.6l2.3 10.6a1.5 1.5 0 0 0 1.5 1.2h8.3a1.5 1.5 0 0 0 1.5-1.1L20.6 7.5H6'/><circle cx='9.6' cy='19.6' r='1.5'/><circle cx='17.1' cy='19.6' r='1.5'/></svg>");
+  --i-wa: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2.8a9.2 9.2 0 0 0-7.9 13.9L2.8 21.2l4.6-1.2A9.2 9.2 0 1 0 12 2.8z' fill='none' stroke='black' stroke-width='1.7' stroke-linejoin='round'/><path d='M8.6 7.6c.3-.5.8-.5 1.1 0l.8 1.7c.1.3 0 .6-.2.8l-.6.6c.6 1.3 1.6 2.3 2.9 2.9l.6-.6c.2-.2.5-.3.8-.2l1.7.8c.5.2.5.8 0 1.1-.9.7-2 .9-3 .5-2.1-.9-3.7-2.5-4.6-4.6-.4-1-.2-2.1.5-3z' fill='black'/></svg>");
   --i-arrow: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 12' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M1 6h23M19 1l5 5-5 5'/></svg>");
 }
 
@@ -92,7 +94,9 @@ body { background: var(--paper); }
   background: #fff; color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 700;
 }
 .cart-btn.has-items .count { background: var(--pill); color: #fff; animation: pop .35s ease; }
-@media (max-width: 380px) { .cart-label { display: none; } .cart-btn { padding-left: .35rem; } }
+.cart-ico { flex: none; width: 21px; height: 21px; margin-right: -.15rem; background: currentColor; -webkit-mask: var(--i-cart) center / contain no-repeat; mask: var(--i-cart) center / contain no-repeat; }
+.cart-btn:hover .cart-ico { animation: pop .35s ease; }
+@media (max-width: 380px) { .cart-label { display: none; } .cart-btn { padding-left: .75rem; } }
 
 @keyframes pop { 40% { transform: scale(1.18); } }
 
@@ -344,7 +348,9 @@ a.season-media:hover img { transform: scale(1.04); }
 .site-footer { margin-top: 3rem; padding: 2.5rem 0 3rem; background: var(--ink); color: #EBD3DE; font-size: .95rem; }
 .foot { display: grid; gap: 1.5rem; }
 @media (min-width: 760px) { .foot { grid-template-columns: 1.4fr 1fr 1fr; } }
-.foot-brand { display: block; color: #fff; font-family: var(--font-brand); font-size: 2.3rem; font-weight: 700; line-height: 1.1; }
+.foot-brand { display: inline-block; color: #fff; font-family: var(--font-brand); font-size: 2.3rem; font-weight: 700; line-height: 1.1; text-decoration: none; }
+.foot-brand img { height: 72px; width: auto; filter: drop-shadow(0 0 14px rgb(255 214 232 / .25)) brightness(1.08); }
+@media (min-width: 760px) { .foot-brand img { height: 84px; } }
 .foot p { margin-top: .35rem; }
 .foot-pay { color: #C9A9B9; font-size: .88rem; }
 .foot ul { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; align-content: start; }
@@ -429,3 +435,41 @@ dialog.drawer[open] { display: flex; transform: translateX(0); transition: trans
 
 .anim .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
 .anim .reveal.in { opacity: 1; transform: none; }
+
+/* ------------------------------------------------------------------ nosotros */
+
+.about-teaser { margin-top: 3rem; padding-block: 2.5rem; background: var(--paper-2); border-block: 1px solid var(--line); }
+.about-in { display: grid; gap: 1.5rem; align-items: center; }
+.about-media { aspect-ratio: 4 / 5; max-height: 420px; overflow: hidden; border-radius: 22px; background: linear-gradient(160deg, var(--rose-soft), #E3C2CF); box-shadow: var(--shadow); }
+.about-media img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.about-copy { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.about-copy h2 { margin: .35rem 0 .75rem; font-family: var(--font-serif); font-style: italic; font-weight: 500; font-size: clamp(1.9rem, 6.6vw, 3rem); line-height: 1.08; text-wrap: balance; }
+.about-lead { max-width: 46ch; margin-bottom: 1.4rem; font-family: var(--font-serif); font-style: italic; font-size: clamp(1.05rem, 3.8vw, 1.25rem); line-height: 1.5; color: #5A3A4B; }
+@media (min-width: 760px) {
+  .about-in { grid-template-columns: minmax(0, 380px) 1fr; gap: 4rem; justify-content: center; }
+  .about-media { max-height: none; }
+}
+
+.about-body { max-width: 720px; padding-block: 2.5rem 1rem; }
+.about-body > p { margin-bottom: 1.1rem; font-size: 1.05rem; line-height: 1.75; color: #4A3441; white-space: pre-line; }
+.about-body > .about-lead { font-size: clamp(1.15rem, 4vw, 1.4rem); text-align: center; margin-inline: auto; }
+.about-perks { margin-top: 2rem; }
+
+/* ------------------------------------------------------------------ botón flotante de WhatsApp */
+
+.wa-float {
+  position: fixed; z-index: 20; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+  display: inline-flex; align-items: center; gap: .6rem; height: 58px; padding: 0 17px;
+  border-radius: 999px; background: #25D366; color: #fff; text-decoration: none; font-weight: 700;
+  box-shadow: 0 10px 24px -8px rgb(18 140 70 / .6), 0 2px 6px rgb(0 0 0 / .12);
+  transition: transform .2s ease, box-shadow .2s ease;
+  animation: wa-in .5s .8s ease both;
+}
+.wa-float[hidden] { display: none; }
+.wa-float:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -8px rgb(18 140 70 / .7), 0 2px 6px rgb(0 0 0 / .12); }
+.wa-float:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.wa-ico { flex: none; width: 26px; height: 26px; background: currentColor; -webkit-mask: var(--i-wa) center / contain no-repeat; mask: var(--i-wa) center / contain no-repeat; }
+.wa-label { white-space: nowrap; }
+@media (max-width: 699px) { .wa-label { display: none; } .wa-float { width: 58px; padding: 0; justify-content: center; } }
+@keyframes wa-in { from { opacity: 0; transform: translateY(20px) scale(.9); } }
+.site-footer { padding-bottom: 6rem; } /* que el botón flotante no tape los enlaces del pie */

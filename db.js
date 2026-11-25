@@ -250,6 +250,10 @@ const DEFAULTS = {
   currency: 'S/',
   instagram: 'L.umiere777',
   shipping_note: 'Enviamos a todo el Perú. Coordinamos el pago y el envío por WhatsApp.',
+  // Sección "Nosotros": texto de ejemplo para que la dueña lo reemplace desde el panel (Mi tienda).
+  about_title: 'Nuestra historia',
+  about_text: 'Lumiere nació de las ganas de vestir a mujeres que brillan sin hacer ruido.\n\nElegimos cada prenda una por una, pensando en cómo cae, cómo se siente y cómo te hace sentir. Te acompañamos por WhatsApp desde que eliges tu outfit hasta que llega a tu puerta, en cualquier parte del Perú.',
+  about_image: '',
 };
 
 function getSettings() {

@@ -20,7 +20,8 @@
       </button>
       <a class="brand" id="brand" href="#/"></a>
       <button class="cart-btn" id="cart-btn" type="button" aria-haspopup="dialog">
-        <span class="cart-label">Mi pedido</span>
+        <span class="cart-ico" aria-hidden="true"></span>
+        <span class="cart-label">Mi carrito</span>
         <span class="count" id="cart-count" aria-hidden="true">0</span>
         <span class="sr-only" id="cart-count-sr"></span>
       </button>
@@ -30,6 +31,11 @@
   <main id="app" tabindex="-1"><p class="wrap loading">Cargando la tienda…</p></main>
 
   <footer class="site-footer" id="footer"></footer>
+
+  <a class="wa-float" id="wa-float" href="#" target="_blank" rel="noopener" hidden>
+    <span class="wa-ico" aria-hidden="true"></span>
+    <span class="wa-label">Pide por WhatsApp</span>
+  </a>
 
   <dialog class="menu" id="menu" aria-label="Menú"></dialog>
   <dialog class="drawer" id="cart" aria-labelledby="cart-title"></dialog>

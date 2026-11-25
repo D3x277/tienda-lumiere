@@ -185,7 +185,7 @@ function detectImage(buf) {
 
 function cleanSettings(b) {
   const out = {};
-  const text = { store_name: 60, tagline: 120, hero_title: 120, hero_subtitle: 300, currency: 6, shipping_note: 300 };
+  const text = { store_name: 60, tagline: 120, hero_title: 120, hero_subtitle: 300, currency: 6, shipping_note: 300, about_title: 80, about_text: 2000 };
   for (const [k, max] of Object.entries(text)) if (k in b) out[k] = str(b[k], max);
   if ('store_name' in out && !out.store_name) throw bad('El nombre de la tienda no puede estar vacío');
   if ('currency' in out && !out.currency) out.currency = 'S/';
@@ -199,7 +199,7 @@ function cleanSettings(b) {
     out.whatsapp = digits;
   }
   if ('instagram' in b) out.instagram = str(b.instagram, 30).replace(/^@/, '').replace(/[^\w.]/g, '');
-  for (const k of ['logo', 'hero_image']) {
+  for (const k of ['logo', 'hero_image', 'about_image']) {
     if (k in b) {
       if (b[k] && !SETTINGS_IMAGE_URL.test(b[k])) throw bad('Imagen no válida');
       out[k] = b[k] || '';
@@ -795,7 +795,7 @@ const WIPE_PARTS = ['pedidos', 'clientes', 'campanas', 'ventas', 'compras', 'pre
 
 function removeUnusedUploads() {
   const s = getSettings();
-  const kept = [s.logo, s.hero_image,
+  const kept = [s.logo, s.hero_image, s.about_image,
     ...db.prepare('SELECT image FROM categories').all().map((r) => r.image),
     ...db.prepare('SELECT image FROM seasons').all().map((r) => r.image)];
   const used = new Set(kept.filter((u) => u && u.startsWith('/uploads/')).map((u) => u.slice('/uploads/'.length)));

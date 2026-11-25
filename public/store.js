@@ -41,7 +41,7 @@ function addToCart({ id, size, color, qty }) {
 function updateBadge() {
   const n = cartCount();
   $('#cart-count').textContent = n;
-  $('#cart-count-sr').textContent = `Ver pedido, ${n} ${n === 1 ? 'prenda' : 'prendas'}`;
+  $('#cart-count-sr').textContent = `Ver mi carrito, ${n} ${n === 1 ? 'prenda' : 'prendas'}`;
   $('#cart-btn').classList.toggle('has-items', n > 0);
 }
 
@@ -204,7 +204,54 @@ function homeView() {
       })));
   }
 
-  return h('div', {}, hero, perks, cats, arrivals, seasonFeature, seasonList);
+  return h('div', {}, hero, perks, cats, arrivals, seasonFeature, seasonList, aboutTeaser());
+}
+
+// ------------------------------------------------------------------ nosotros
+
+const aboutParas = () => String(state.settings.about_text || '').split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean);
+const aboutImage = () => {
+  const s = state.settings;
+  return s.about_image || s.hero_image || state.products.find((p) => p.featured && p.images.length)?.images[0] || state.products.find((p) => p.images.length)?.images[0];
+};
+
+function aboutTeaser() {
+  const paras = aboutParas();
+  if (!paras.length) return null;
+  const src = aboutImage();
+  return h('section', { class: 'about-teaser reveal' },
+    h('div', { class: 'wrap about-in' },
+      h('div', { class: 'about-media' }, src ? h('img', { src, alt: '', loading: 'lazy' }) : null),
+      h('div', { class: 'about-copy' },
+        h('span', { class: 'bow', 'aria-hidden': 'true' }),
+        h('p', { class: 'kicker' }, 'Nosotros'),
+        h('h2', {}, state.settings.about_title || 'Nosotros'),
+        h('p', { class: 'about-lead' }, paras[0]),
+        pill('#/nosotros', 'Conoce más'))));
+}
+
+function aboutView() {
+  const s = state.settings;
+  const paras = aboutParas();
+  if (!paras.length) return missing('Pronto te contaremos nuestra historia', 'Mientras tanto, mira los nuevos ingresos.');
+  document.title = `Nosotros · ${s.store_name}`;
+  const src = aboutImage();
+  return h('div', {},
+    h('section', { class: 'season-hero about-hero' },
+      h('div', { class: 'wrap season-in' },
+        h('div', { class: 'season-media' }, src ? h('img', { src, alt: '' }) : null),
+        h('div', { class: 'season-copy' },
+          h('span', { class: 'sparkle', 'aria-hidden': 'true' }),
+          h('p', { class: 'kicker' }, 'Nosotros'),
+          h('h1', {}, s.about_title || 'Nosotros'),
+          h('span', { class: 'bow-line', 'aria-hidden': 'true' })))),
+    h('section', { class: 'wrap about-body reveal' },
+      paras.map((t, i) => h('p', { class: i === 0 ? 'about-lead' : '' }, t)),
+      h('ul', { class: 'pdp-perks about-perks' },
+        h('li', {}, h('span', { class: 'ico ico-truck', 'aria-hidden': 'true' }), 'Envíos a todo el Perú'),
+        h('li', {}, h('span', { class: 'ico ico-lock', 'aria-hidden': 'true' }), 'Compra segura con Yape, Plin o transferencia'),
+        h('li', {}, h('span', { class: 'ico ico-heart', 'aria-hidden': 'true' }), 'Atención personalizada por WhatsApp')),
+      h('div', { class: 'center' }, pill('#/tienda', 'Ver la colección'))));
 }
 
 // ------------------------------------------------------------------ listados (tienda, categoría, temporada, favoritos)
@@ -353,7 +400,7 @@ function productView(slug) {
             msg,
             h('div', { class: 'buy-row' },
               h('div', { class: 'stepper', role: 'group', 'aria-label': 'Cantidad' }, minus, out, plus),
-              h('button', { class: 'btn-pill btn-buy', type: 'button', onclick: add }, 'Agregar a mi pedido')),
+              h('button', { class: 'btn-pill btn-buy', type: 'button', onclick: add }, 'Agregar al carrito')),
             p.low_stock ? h('p', { class: 'stock-note' }, `¡Quedan solo ${p.low_stock}!`) : null,
           ],
         h('ul', { class: 'pdp-perks' },
@@ -391,6 +438,7 @@ function renderMenu() {
       link('#/', 'Inicio'),
       link('#/nuevos', 'Nuevos ingresos'),
       link('#/tienda', 'Todas las prendas'),
+      aboutParas().length ? link('#/nosotros', 'Nosotros') : null,
       state.seasons.length ? [h('p', { class: 'menu-label' }, 'Temporadas'), state.seasons.map((x, i) =>
         link(`#/temporada/${x.slug}`, x.name, i === 0 ? h('span', { class: 'menu-pill' }, 'Nueva') : null))] : null,
       state.categories.length ? [h('p', { class: 'menu-label' }, 'Categorías'), state.categories.map((c) => link(`#/c/${c.slug}`, c.name))] : null,
@@ -414,7 +462,7 @@ function closeCart() { cartDialog().close(); }
 function renderCart() {
   const dlg = cartDialog();
   const head = h('div', { class: 'drawer-head' },
-    h('h2', { id: 'cart-title' }, cartStage === 'done' ? 'Pedido registrado' : 'Mi pedido'),
+    h('h2', { id: 'cart-title' }, cartStage === 'done' ? 'Pedido registrado' : 'Mi carrito'),
     h('button', { class: 'close-x', type: 'button', 'aria-label': 'Cerrar', onclick: closeCart }));
   dlg.replaceChildren(head, h('div', { class: 'drawer-body' }, cartStage === 'done' ? doneView() : cartView()));
 }
@@ -424,7 +472,7 @@ function cartView() {
   if (!lines.length) {
     return h('div', { class: 'drawer-empty' },
       h('span', { class: 'bow', 'aria-hidden': 'true' }),
-      h('p', {}, 'Tu pedido está vacío. Elige una prenda y toca "Agregar a mi pedido".'),
+      h('p', {}, 'Tu carrito está vacío. Elige una prenda y toca "Agregar al carrito".'),
       h('button', { class: 'btn-pill', type: 'button', onclick: () => { closeCart(); location.hash = '#/tienda'; } }, 'Ver las prendas', arrow()));
   }
 
@@ -538,6 +586,7 @@ function viewFor(page, slug) {
       document.title = `Nuevos ingresos · ${s.store_name}`;
       return listView({ title: 'Nuevos ingresos', kicker: 'Descubre lo más reciente', pool: state.products.slice(0, 24),
         empty: emptyBox('Estamos preparando la tienda', 'Muy pronto verás aquí los primeros outfits.') });
+    case 'nosotros': return aboutView();
     case 'favoritos':
       document.title = `Mis favoritos · ${s.store_name}`;
       return listView({ title: 'Mis favoritos', kicker: 'Lo que guardaste con ♡', pool: state.products.filter((p) => favs.has(p.id)),
@@ -558,6 +607,19 @@ function render() {
   $('#app').replaceChildren(viewFor(page, slug));
   window.scrollTo(0, page === 'p' ? 0 : scrolls[shown] || 0);
   observeReveals();
+  updateWaFloat(page === 'p' ? state.products.find((p) => p.slug === slug) : null);
+}
+
+// Botón flotante de WhatsApp. En la página de una prenda, el mensaje ya dice cuál quiere.
+function updateWaFloat(product) {
+  const s = state.settings, a = $('#wa-float');
+  if (!s.whatsapp) { a.hidden = true; return; }
+  const text = product
+    ? `Hola, quiero pedir "${product.name}" (${money(product.price)}). ${location.origin}/#/p/${product.slug}`
+    : `Hola, quiero hacer un pedido en ${s.store_name}.`;
+  a.href = `https://wa.me/${s.whatsapp}?text=${encodeURIComponent(text)}`;
+  a.setAttribute('aria-label', product ? `Pedir ${product.name} por WhatsApp` : 'Hacer mi pedido por WhatsApp');
+  a.hidden = false;
 }
 
 // Las secciones aparecen suavemente al bajar. Sin animación si la persona la desactivó.
@@ -583,13 +645,15 @@ function drawChrome() {
   if (s.whatsapp) links.push(h('li', {}, h('a', { href: `https://wa.me/${s.whatsapp}`, target: '_blank', rel: 'noopener' }, 'WhatsApp')));
   $('#footer').replaceChildren(h('div', { class: 'wrap foot' },
     h('div', {},
-      h('strong', { class: 'foot-brand' }, s.store_name),
+      h('a', { class: 'foot-brand', href: '#/', 'aria-label': `${s.store_name}, ir al inicio` },
+        s.logo ? h('img', { src: s.logo, alt: s.store_name, loading: 'lazy' }) : s.store_name),
       s.tagline ? h('p', {}, s.tagline) : null,
       h('p', { class: 'foot-pay' }, 'Pagos: Yape · Plin · Transferencia')),
     h('ul', { class: 'foot-nav' },
       h('li', {}, h('a', { href: '#/nuevos' }, 'Nuevos ingresos')),
       h('li', {}, h('a', { href: '#/tienda' }, 'Todas las prendas')),
-      h('li', {}, h('a', { href: '#/favoritos' }, 'Mis favoritos'))),
+      h('li', {}, h('a', { href: '#/favoritos' }, 'Mis favoritos')),
+      aboutParas().length ? h('li', {}, h('a', { href: '#/nosotros' }, 'Nosotros')) : null),
     links.length ? h('ul', { class: 'foot-social' }, links) : null));
 }
 
