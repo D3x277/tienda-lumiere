@@ -10,7 +10,7 @@ const NAV = [
   ['Ventas', [['pedidos', 'Pedidos web'], ['ventas', 'Registro de ventas'], ['clientes', 'Clientes'], ['campanas', 'Campañas']]],
   ['Catálogo', [['prendas', 'Prendas'], ['categorias', 'Categorías'], ['temporadas', 'Temporadas']]],
   ['Compras', [['cuentas', 'Compras Shein']]],
-  ['Ajustes', [['tienda', 'Mi tienda']]],
+  ['Mi marca', [['nosotros', 'Nosotros'], ['tienda', 'Mi tienda']]],
 ];
 const TABS = NAV.flatMap(([, items]) => items);
 const STATUS = { nuevo: 'Nuevo', confirmado: 'Confirmado', enviado: 'Enviado', entregado: 'Entregado', cancelado: 'Cancelado' };
@@ -142,7 +142,7 @@ function route() {
   document.title = `${TABS.find((t) => t[0] === A.tab)[1]} · Panel`;
   const views = {
     negocio: businessView, resumen: reportsView, clientes: customersView, pedidos: ordersView, ventas: salesView, campanas: campaignsView,
-    prendas: productsView, categorias: categoriesView, temporadas: seasonsView, cuentas: accountsView, tienda: settingsView,
+    prendas: productsView, categorias: categoriesView, temporadas: seasonsView, cuentas: accountsView, nosotros: aboutView, tienda: settingsView,
   };
   $('#panel').replaceChildren(views[A.tab](param));
 }
@@ -880,7 +880,7 @@ const SWATCHES = [['#892E54', 'Rosa Lumiere'], ['#B35C8A', 'Rosa empolvado'], ['
 
 function settingsView() {
   const s = A.settings;
-  const draft = { logo: s.logo, hero_image: s.hero_image, about_image: s.about_image, accent: s.accent };
+  const draft = { logo: s.logo, hero_image: s.hero_image, accent: s.accent };
 
   const colorInput = h('input', { type: 'color', value: draft.accent.toLowerCase(), 'aria-label': 'Elegir otro color', oninput: (e) => setAccent(e.target.value.toUpperCase()) });
   const swatchEls = SWATCHES.map(([hex, name]) => h('button', {
@@ -911,7 +911,6 @@ function settingsView() {
             store_name: el.store_name.value, tagline: el.tagline.value, currency: el.currency.value, whatsapp: el.whatsapp.value,
             instagram: el.instagram.value, shipping_note: el.shipping_note.value, hero_title: el.hero_title.value,
             hero_subtitle: el.hero_subtitle.value, accent: draft.accent, logo: draft.logo, hero_image: draft.hero_image,
-            about_title: el.about_title.value, about_text: el.about_text.value, about_image: draft.about_image,
           },
         });
         applyAccent(A.settings.accent);
@@ -945,15 +944,6 @@ function settingsView() {
     h('div', { class: 'field' }, h('span', { class: 'label' }, 'Foto de portada (opcional)'),
       imageField({ value: draft.hero_image, wide: true, onChange: (u) => { draft.hero_image = u; } }),
       h('span', { class: 'hint' }, 'Mejor vertical (la modelo de cuerpo entero). Si no subes una, la portada usa la foto de tu temporada actual o de una prenda destacada.'))),
-  h('div', { class: 'box' },
-    h('h3', { class: 'sub' }, 'Nosotros'),
-    h('p', { class: 'muted' }, 'Cuéntales a tus clientas quién eres. Sale en la portada y en la página "Nosotros". Si dejas el texto vacío, la sección no se muestra.'),
-    field('Título', h('input', { class: 'input', name: 'about_title', maxlength: '80', value: s.about_title, placeholder: 'Ej. Nuestra historia' })),
-    field('Texto', h('textarea', { class: 'textarea', name: 'about_text', maxlength: '2000', rows: '7', placeholder: 'Cómo nació la marca, qué te inspira, cómo eliges las prendas…' }, s.about_text),
-      'Deja una línea en blanco para separar párrafos. El primer párrafo es el que sale en la portada.'),
-    h('div', { class: 'field' }, h('span', { class: 'label' }, 'Foto (opcional)'),
-      imageField({ value: draft.about_image, wide: true, onChange: (u) => { draft.about_image = u; } }),
-      h('span', { class: 'hint' }, 'Una foto tuya, de tu equipo o de tus prendas. Si no subes una, se usa la de la portada.'))),
   h('div', { class: 'savebar' }, saveBtn, h('a', { class: 'btn', href: '/', target: '_blank', rel: 'noopener' }, 'Ver mi tienda'), msg));
 
   // Contraseña
@@ -982,6 +972,59 @@ function settingsView() {
     h('button', { class: 'btn btn-dark', type: 'submit' }, 'Cambiar contraseña')));
 
   return h('div', {}, h('div', { class: 'panel-head' }, h('h2', { class: 'title' }, 'Mi tienda')), storeForm, pwForm, wipeForm());
+}
+
+// ------------------------------------------------------------------ nosotros
+
+// La historia de la marca: sale en la portada (primer párrafo) y en la página Nosotros de la tienda.
+function aboutView() {
+  const s = A.settings;
+  let image = s.about_image || '';
+  const paras = (t) => String(t || '').split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
+
+  const title = h('input', { class: 'input', name: 'about_title', maxlength: '80', value: s.about_title || '', placeholder: 'Ej. Porque cada ocasión merece tu propia luz.', oninput: () => drawPreview() });
+  const text = h('textarea', { class: 'textarea about-text', name: 'about_text', maxlength: '2000', rows: '9', placeholder: 'Cómo nació la marca, qué te inspira, cómo eliges las prendas…', oninput: () => drawPreview() }, s.about_text || '');
+  const count = h('span', { class: 'hint' });
+  const preview = h('div', { class: 'about-preview', 'aria-live': 'polite' });
+
+  function drawPreview() {
+    const ps = paras(text.value);
+    count.textContent = `${text.value.length} / 2000 · ${ps.length} ${ps.length === 1 ? 'párrafo' : 'párrafos'}. Deja una línea en blanco entre párrafos.`;
+    preview.replaceChildren(...(ps.length
+      ? [h('p', { class: 'ap-kicker' }, 'Nosotros'), h('p', { class: 'ap-title' }, title.value || 'Nosotros'), ...ps.map((t, i) => h('p', { class: i ? 'ap-p' : 'ap-lead' }, t))]
+      : [h('p', { class: 'muted' }, 'Con el texto vacío, la sección Nosotros no se muestra en la tienda.')]));
+  }
+  drawPreview();
+
+  const msg = h('p', { class: 'form-msg', role: 'alert' });
+  const save = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Guardar');
+  const form = h('form', {
+    novalidate: true,
+    onsubmit: async (e) => {
+      e.preventDefault();
+      msg.textContent = ''; save.disabled = true; save.textContent = 'Guardando…';
+      try {
+        A.settings = await call('/api/admin/settings', { method: 'PUT', body: { about_title: title.value, about_text: text.value, about_image: image } });
+        toast('Nosotros guardado');
+      } catch (ex) { msg.textContent = ex.message; }
+      save.disabled = false; save.textContent = 'Guardar';
+    },
+  },
+  h('div', { class: 'about-admin' },
+    h('div', { class: 'box' },
+      h('label', { class: 'field' }, h('span', { class: 'label' }, 'Título'), title),
+      h('label', { class: 'field' }, h('span', { class: 'label' }, 'Texto'), text, count),
+      h('div', { class: 'field' }, h('span', { class: 'label' }, 'Foto (opcional)'),
+        imageField({ value: image, wide: true, onChange: (u) => { image = u; } }),
+        h('span', { class: 'hint' }, 'Una foto tuya, de tu equipo o de tus prendas. Si no subes una, se usa la de la portada.'))),
+    h('div', { class: 'box' }, h('h3', { class: 'sub' }, 'Así se verá'),
+      h('p', { class: 'muted' }, 'En la portada sale el título y el primer párrafo; en la página Nosotros, todo.'), preview)),
+  h('div', { class: 'savebar' }, save, h('a', { class: 'btn', href: '/#/nosotros', target: '_blank', rel: 'noopener' }, 'Ver en la tienda'), msg));
+
+  return h('div', {},
+    h('div', { class: 'panel-head' }, h('h2', { class: 'title' }, 'Nosotros')),
+    h('p', { class: 'hint-block' }, 'Cuéntales a tus clientas quién eres. Puedes cambiarlo cuando quieras.'),
+    form);
 }
 
 // Borrar datos: para limpiar lo que se cargó de prueba y empezar de cero. Pide la contraseña y no se puede deshacer.

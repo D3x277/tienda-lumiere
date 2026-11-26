@@ -511,3 +511,13 @@ dialog.modal::backdrop { background: rgb(22 26 35 / .5); }
 .rep-grid > * { min-width: 0; } /* la tabla se desplaza dentro de su caja en vez de ensanchar la página */
 .dtable td.num, .dtable th.num { white-space: nowrap; }
 .big-v { overflow-wrap: anywhere; }
+
+/* Nosotros: edición con vista previa */
+.about-admin { display: grid; gap: 0 1.25rem; }
+@media (min-width: 980px) { .about-admin { grid-template-columns: 1.1fr 1fr; align-items: start; } .about-admin > .box:last-child { position: sticky; top: 1rem; } }
+.about-text { min-height: 220px; line-height: 1.55; }
+.about-preview { padding: 1.25rem; background: #FBF4F6; border: 1px solid var(--line); border-radius: var(--radius); text-align: center; }
+.ap-kicker { color: var(--muted); font-size: .7rem; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; }
+.ap-title { margin: .3rem 0 .8rem; font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-size: 1.6rem; line-height: 1.15; }
+.ap-lead { margin-bottom: .8rem; font-family: 'Playfair Display', Georgia, serif; font-style: italic; color: #5A3A4B; line-height: 1.55; }
+.ap-p { margin-bottom: .8rem; color: #4A3441; line-height: 1.6; text-align: left; }
